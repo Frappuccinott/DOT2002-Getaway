@@ -3,30 +3,64 @@ using UnityEngine;
 public class PlayerCrosshair : MonoBehaviour
 {
     [Header("Crosshair Ayarları")]
-    [SerializeField] private float size = 16f;
+    [SerializeField] private float size = 2f;
     [SerializeField] private Color defaultColor = Color.white;
     [SerializeField] private Color outlineColor = new Color(0f, 0f, 0f, 0.5f);
-    [SerializeField] private float outlineThickness = 1f;
+    [SerializeField] private float outlineThickness = 0.5f;
 
     private Texture2D crosshairTexture;
+    private float lastSize;
+    private float lastOutlineThickness;
+    private Color lastColor;
+    private Color lastOutlineColor;
 
     private void Awake()
     {
-        // 64x64 çözünürlüklü ve içi dolu beyaz bir daire dokusu (texture) oluşturuyoruz
-        int texSize = 64;
-        crosshairTexture = new Texture2D(texSize, texSize, TextureFormat.RGBA32, false);
-        
-        float radius = texSize / 2f;
-        float center = (texSize - 1) / 2f;
+        CreateCircleTexture();
+        UpdateLastValues();
+    }
 
-        for (int x = 0; x < texSize; x++)
+    private void Update()
+    {
+        // Eğer inspector'dan değerler değiştirilirse dokuyu yenile
+        if (size != lastSize || outlineThickness != lastOutlineThickness || 
+            defaultColor != lastColor || outlineColor != lastOutlineColor)
         {
-            for (int y = 0; y < texSize; y++)
+            CreateCircleTexture();
+            UpdateLastValues();
+        }
+    }
+
+    private void UpdateLastValues()
+    {
+        lastSize = size;
+        lastOutlineThickness = outlineThickness;
+        lastColor = defaultColor;
+        lastOutlineColor = outlineColor;
+    }
+
+    private void CreateCircleTexture()
+    {
+        int texSize = 32;
+        crosshairTexture = new Texture2D(texSize, texSize, TextureFormat.ARGB32, false);
+        crosshairTexture.filterMode = FilterMode.Point;
+        
+        float center = texSize / 2f;
+        float radius = texSize / 2f - 1f;
+
+        for (int y = 0; y < texSize; y++)
+        {
+            for (int x = 0; x < texSize; x++)
             {
                 float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
-                // Kenarları yumuşatmak (anti-aliasing) için alfayı aradaki farka göre ayarlıyoruz
-                float alpha = Mathf.Clamp01(radius - dist);
-                crosshairTexture.SetPixel(x, y, new Color(1, 1, 1, alpha));
+                if (dist <= radius)
+                {
+                    crosshairTexture.SetPixel(x, y, Color.white);
+                }
+                else
+                {
+                    crosshairTexture.SetPixel(x, y, Color.clear);
+                }
             }
         }
         crosshairTexture.Apply();
@@ -42,20 +76,15 @@ public class PlayerCrosshair : MonoBehaviour
         float cx = Screen.width / 2f;
         float cy = Screen.height / 2f;
 
-        if (outlineThickness > 0f) DrawCircle(cx, cy, outlineColor, outlineThickness);
-        DrawCircle(cx, cy, defaultColor, 0f);
+        if (outlineThickness > 0f) DrawCrosshair(cx, cy, outlineColor, outlineThickness);
+        DrawCrosshair(cx, cy, defaultColor, 0f);
     }
 
-    private void DrawCircle(float cx, float cy, Color color, float expand)
+    private void DrawCrosshair(float cx, float cy, Color color, float expand)
     {
         GUI.color = color;
-        
-        float currentSize = size + (expand * 2f);
-        float halfSize = currentSize / 2f;
-
-        // Daireyi tam ekranın ortasına yerleştirecek şekilde çiziyoruz
-        GUI.DrawTexture(new Rect(cx - halfSize, cy - halfSize, currentSize, currentSize), crosshairTexture);
-
+        float totalSize = size + (expand * 2f);
+        GUI.DrawTexture(new Rect(cx - totalSize / 2f, cy - totalSize / 2f, totalSize, totalSize), crosshairTexture);
         GUI.color = Color.white;
     }
 }

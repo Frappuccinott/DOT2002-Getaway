@@ -72,7 +72,7 @@ public class PlayerInteraction : MonoBehaviour
             playerCamera = GetComponentInChildren<Camera>();
             if (playerCamera == null) Debug.LogError("[PlayerInteraction] Kamera bulunamadı!");
         }
-
+        
         if (playerCamera != null)
         {
             _cameraDefaultYPosition = playerCamera.transform.localPosition.y;
@@ -130,6 +130,7 @@ public class PlayerInteraction : MonoBehaviour
         if (playerCamera == null) return;
 
         Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+
         if (!Physics.Raycast(ray, out RaycastHit hit, interactionRange, interactionLayer))
         {
             ClearSlotPreview();
@@ -141,25 +142,31 @@ public class PlayerInteraction : MonoBehaviour
             Rigidbody seatRb = playerController.CurrentSeat.GetComponentInParent<Rigidbody>();
             Rigidbody hitRb = hit.collider.attachedRigidbody;
             CarStartSystem hitCar = hit.collider.GetComponentInParent<CarStartSystem>();
+            CarIgnition hitIgnition = hit.collider.GetComponentInParent<CarIgnition>();
 
-            if ((seatRb != null && hitRb == seatRb) ||
-                hit.collider.transform.root == playerController.CurrentSeat.root ||
-                hitCar != null)
+            // Eğer vurulan obje arabanın bir parçasıysa "içeri bakıyor" sayalım
+            // AMA araba kontağı (direksiyon) DEĞİLSE. Çünkü eğer araba kontağına bakmıyorsa inmek istiyor olabilir.
+            if (hitIgnition == null)
             {
-                isLookingAtCarInterior = true;
+                if ((seatRb != null && hitRb == seatRb) ||
+                    hit.collider.transform.root == playerController.CurrentSeat.root ||
+                    hitCar != null)
+                {
+                    isLookingAtCarInterior = true;
+                }
             }
         }
 
-        currentInteractable = hit.collider.GetComponent<IInteractable>();
+        currentInteractable = hit.collider.GetComponentInParent<IInteractable>();
 
-        currentSeat = hit.collider.GetComponent<CarSeat>();
+        currentSeat = hit.collider.GetComponentInParent<CarSeat>();
 
-        HingeDoor door = hit.collider.GetComponent<HingeDoor>();
+        HingeDoor door = hit.collider.GetComponentInParent<HingeDoor>();
         if (door != null && door.CanOperate) currentDoor = door;
 
-        currentFluidTank = hit.collider.GetComponent<CarFluidTank>();
-        currentIgnition = hit.collider.GetComponent<CarIgnition>();
-        lookedSlot = hit.collider.GetComponent<CarPartSlot>();
+        currentFluidTank = hit.collider.GetComponentInParent<CarFluidTank>();
+        currentIgnition = hit.collider.GetComponentInParent<CarIgnition>();
+        lookedSlot = hit.collider.GetComponentInParent<CarPartSlot>();
 
         if (lookedSlot != lastLookedSlot)
         {
@@ -224,7 +231,10 @@ public class PlayerInteraction : MonoBehaviour
         {
             if (currentIgnition != null)
             {
-                currentIgnition.TriggerIgnition();
+                if (currentIgnition.CanInteract)
+                {
+                    currentIgnition.ToggleHandsOnWheel();
+                }
             }
             else if (currentDoor != null && currentDoor.Type == HingeDoor.DoorType.FuelCap && !HasFluidContainer)
             {
@@ -235,6 +245,11 @@ public class PlayerInteraction : MonoBehaviour
                 // Çıkış yolu kapalı mı kontrolü (kapı açık mı?)
                 if (CanExitVehicle())
                 {
+                    if (playerController.CurrentSeat != null)
+                    {
+                        var carCtrl = playerController.CurrentSeat.GetComponentInParent<CarController>();
+                        if (carCtrl != null) carCtrl.isHandsOnWheel = false;
+                    }
                     playerController.StandUp();
                 }
             }
@@ -398,7 +413,7 @@ public class PlayerInteraction : MonoBehaviour
     private void UpdateHeldFluidContainerPosition()
     {
         if (playerCamera == null || heldFluidContainer == null) return;
-
+        
         float headBobOffset = playerCamera.transform.localPosition.y - _cameraDefaultYPosition;
         Vector3 baseTarget = playerCamera.transform.position + playerCamera.transform.forward * currentHoldDistance;
         Vector3 finalTarget = baseTarget + (playerCamera.transform.up * headBobOffset);

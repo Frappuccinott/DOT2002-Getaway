@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[RequireComponent(typeof(Collider))]
+// [RequireComponent(typeof(Collider))]
 public class HingeDoor : MonoBehaviour
 {
     public enum DoorType { CarDoor, Hood, Trunk, FuelCap, HangarDoor, GenericDoor }

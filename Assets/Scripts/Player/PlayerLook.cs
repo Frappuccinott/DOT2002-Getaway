@@ -21,9 +21,8 @@ public class PlayerLook : MonoBehaviour
     [SerializeField] private Transform cameraTransform;
 
     [Header("Zoom Ayarları")]
-    [Tooltip("Zoom tuşuna (Q) basıldığında kullanılacak kamera açısı (FOV)")]
-    [SerializeField] private float zoomFOV = 30f;
-    
+    [Tooltip("Zoom aktifken hedeflenen FOV değeri")]
+    [SerializeField] private float zoomFOV = 40f;
     [Tooltip("Zoom geçiş hızı")]
     [SerializeField] private float zoomSpeed = 10f;
 
@@ -31,14 +30,15 @@ public class PlayerLook : MonoBehaviour
 
     // Input referansı
     private PlayerInputActions inputActions;
-    private float normalFOV = 60f;
-    private Camera playerCamera;
 
     // Dahili durum
     private float verticalRotation = 0f;
     private bool isSnappingToSeat = false;
     private Quaternion targetPlayerRotation;
     private Quaternion targetCameraRotation;
+    private Camera playerCamera;
+    private float defaultFOV;
+    private bool isZooming = false;
 
     private void Awake()
     {
@@ -47,33 +47,33 @@ public class PlayerLook : MonoBehaviour
         // Kamera referansı atanmadıysa child'dan bul
         if (cameraTransform == null)
         {
-            playerCamera = GetComponentInChildren<Camera>();
-            if (playerCamera != null)
+            Camera cam = GetComponentInChildren<Camera>();
+            if (cam != null)
             {
-                cameraTransform = playerCamera.transform;
+                cameraTransform = cam.transform;
             }
             else
             {
                 Debug.LogError("[PlayerLook] Kamera bulunamadı! Lütfen Inspector'dan atayın veya child olarak ekleyin.");
             }
         }
-        else
+
+        if (cameraTransform != null)
         {
             playerCamera = cameraTransform.GetComponent<Camera>();
-        }
-    }
-
-    private void Start()
-    {
-        if (playerCamera != null)
-        {
-            normalFOV = playerCamera.fieldOfView;
+            if (playerCamera != null)
+            {
+                defaultFOV = playerCamera.fieldOfView;
+            }
         }
     }
 
     private void OnEnable()
     {
         inputActions.Player.Enable();
+
+        inputActions.Player.Zoom.started += OnZoomStarted;
+        inputActions.Player.Zoom.canceled += OnZoomCanceled;
 
         // İmleci kilitle ve gizle
         Cursor.lockState = CursorLockMode.Locked;
@@ -82,6 +82,9 @@ public class PlayerLook : MonoBehaviour
 
     private void OnDisable()
     {
+        inputActions.Player.Zoom.started -= OnZoomStarted;
+        inputActions.Player.Zoom.canceled -= OnZoomCanceled;
+
         inputActions.Player.Disable();
 
         // İmleci serbest bırak
@@ -103,11 +106,19 @@ public class PlayerLook : MonoBehaviour
     private void HandleZoom()
     {
         if (playerCamera == null) return;
-
-        bool isZooming = Keyboard.current != null && Keyboard.current.qKey.isPressed;
-        float targetFOV = isZooming ? zoomFOV : normalFOV;
-
+        
+        float targetFOV = isZooming ? zoomFOV : defaultFOV;
         playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, targetFOV, zoomSpeed * Time.deltaTime);
+    }
+
+    private void OnZoomStarted(InputAction.CallbackContext context)
+    {
+        isZooming = true;
+    }
+
+    private void OnZoomCanceled(InputAction.CallbackContext context)
+    {
+        isZooming = false;
     }
 
     public void SnapToSeatLook(Transform seatPoint)

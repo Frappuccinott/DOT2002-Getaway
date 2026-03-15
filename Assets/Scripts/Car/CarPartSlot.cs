@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[RequireComponent(typeof(Collider))]
+// [RequireComponent(typeof(Collider))] // Yorum satırına alındı çünkü collider'lar child objelerde olabiliyor
 public class CarPartSlot : MonoBehaviour, IInteractable
 {
     [Header("Slot Ayarları")]

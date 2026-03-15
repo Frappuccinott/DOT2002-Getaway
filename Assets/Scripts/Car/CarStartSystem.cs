@@ -15,6 +15,7 @@ public class CarStartSystem : MonoBehaviour
     private bool isRunning;
 
     public bool IsRunning => isRunning;
+    public bool HasBattery => assemblyManager != null && assemblyManager.IsPartInstalled(CarPartType.Battery);
 
     private void Start()
     {
@@ -25,7 +26,7 @@ public class CarStartSystem : MonoBehaviour
         }
     }
 
-    private CarFluidTank GetTank(FluidType type)
+    public CarFluidTank GetTank(FluidType type)
     {
         if (fluidTanks == null) return null;
         return fluidTanks.FirstOrDefault(t => t.AcceptedFluidType == type);
@@ -51,7 +52,6 @@ public class CarStartSystem : MonoBehaviour
 
     private CarStartResult CheckConditions(bool isStartingAttempt)
     {
-        bool hasBattery = assemblyManager != null && assemblyManager.IsPartInstalled(CarPartType.Battery);
         bool hasEngine = assemblyManager != null && assemblyManager.IsPartInstalled(CarPartType.Engine);
         bool hasRadiator = assemblyManager != null && assemblyManager.IsPartInstalled(CarPartType.Radiator);
 
@@ -73,7 +73,7 @@ public class CarStartSystem : MonoBehaviour
         if (isStartingAttempt)
         {
             Debug.Log("=== [CarStart] IGNITION ATTEMPT ===");
-            Debug.Log($"[CarStart] Battery:   {(hasBattery ? "INSTALLED" : "MISSING")}");
+            Debug.Log($"[CarStart] Battery:   {(HasBattery ? "INSTALLED" : "MISSING")}");
             Debug.Log($"[CarStart] Engine:    {(hasEngine ? "INSTALLED" : "MISSING")}");
             Debug.Log($"[CarStart] Radiator:  {(hasRadiator ? "INSTALLED" : "MISSING")}");
             Debug.Log($"[CarStart] Fuel:      {currentFuel:F1}/{maxFuel:F0} L (min {minimumFuel:F0} L) — {(hasEnoughFuel ? "OK" : "LOW")}");
@@ -81,7 +81,7 @@ public class CarStartSystem : MonoBehaviour
             Debug.Log($"[CarStart] Coolant:   {currentCoolant:F1}/{maxCoolant:F0} L (min {minimumCoolant:F0} L) — {(hasEnoughCoolant ? "OK" : "LOW")}");
         }
 
-        if (!hasBattery)
+        if (!HasBattery)
         {
             if (isStartingAttempt) Debug.LogWarning("[CarStart] RESULT: No battery — vehicle does not respond at all.");
             return CarStartResult.NoBattery;

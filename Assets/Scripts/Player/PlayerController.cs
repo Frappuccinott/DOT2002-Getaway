@@ -87,6 +87,7 @@ public class PlayerController : MonoBehaviour
     private bool isStandingUp;
     private Transform currentSeat;
     private Vector3 standPosition;
+    private Vector3 localStandOffset;
 
     // Başlangıç CharacterController ayarları
     private Vector3 defaultCenter;
@@ -232,8 +233,8 @@ public class PlayerController : MonoBehaviour
     {
         if (currentSeat != null)
         {
-            // Pürüzsüzce koltuğa çekil
-            transform.position = Vector3.Lerp(transform.position, currentSeat.position, sitLerpSpeed * Time.deltaTime);
+            // Pürüzsüzce koltuğa çekil (Araç hareket ederken stabil olması için localPosition kullanılır)
+            transform.localPosition = Vector3.Lerp(transform.localPosition, Vector3.zero, sitLerpSpeed * Time.deltaTime);
 
             // Yüksekliği oturma yüksekliğine çek (eğilme mantığına benzer)
             float currentH = controller.height;
@@ -250,10 +251,23 @@ public class PlayerController : MonoBehaviour
 
         isSitting = true;
         currentSeat = seatPoint;
+        
+        // İlk giriş pozisyonunu araca göre lokal olarak kaydet ki araba hareket etse bile çıkış yerimiz doğru olsun
+        localStandOffset = seatPoint.InverseTransformPoint(transform.position);
         standPosition = transform.position;
 
         // Fiziği/Hareketi Kapat
         controller.enabled = false;
+
+        // Kendi üzerimizdeki collider'ları kapat ki arabayı itmeyelim
+        Collider[] colliders = GetComponents<Collider>();
+        foreach (var col in colliders) col.enabled = false;
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null) rb.isKinematic = true;
+
+        // Birlikte hareket etmek için araca parent ol
+        transform.SetParent(seatPoint);
 
         // Bakışı oturma yönüne çevir
         GetComponent<PlayerLook>()?.SnapToSeatLook(seatPoint);
@@ -265,7 +279,14 @@ public class PlayerController : MonoBehaviour
 
         isSitting = false;
         isStandingUp = true;
+        
+        // Mevcut araç pozisyonuna göre çıkış noktasını hesapla
+        standPosition = currentSeat.TransformPoint(localStandOffset);
+        
         currentSeat = null;
+        
+        // Animasyon süresince bağımsız kal
+        transform.SetParent(null);
         
         GetComponent<PlayerLook>()?.StopSnapping();
     }
@@ -286,6 +307,14 @@ public class PlayerController : MonoBehaviour
         if (Vector3.Distance(transform.position, standPosition) < 0.05f && Mathf.Abs(newH - standHeight) < 0.05f)
         {
             isStandingUp = false;
+            
+            // Collider'ları geri aç
+            Collider[] colliders = GetComponents<Collider>();
+            foreach (var col in colliders) col.enabled = true;
+
+            Rigidbody rb = GetComponent<Rigidbody>();
+            if (rb != null) rb.isKinematic = false;
+
             controller.enabled = true; // Fiziği Geri Aç
         }
     }

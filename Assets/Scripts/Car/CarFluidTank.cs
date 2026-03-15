@@ -43,6 +43,14 @@ public class CarFluidTank : MonoBehaviour, IInteractable
         return added;
     }
 
+    public float ConsumeFluid(float amount)
+    {
+        float consumed = Mathf.Min(amount, currentFluid);
+        currentFluid -= consumed;
+        if (currentFluid < 0.005f) currentFluid = 0f;
+        return consumed;
+    }
+
     public string GetTooltipText()
     {
         return $"{currentFluid:F2}/{maxCapacity:F0} L {acceptedFluidType.GetDisplayName()}";

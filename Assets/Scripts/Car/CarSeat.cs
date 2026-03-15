@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[RequireComponent(typeof(Collider))]
+// [RequireComponent(typeof(Collider))]
 public class CarSeat : MonoBehaviour, IInteractable
 {
     [Header("Oturma Ayarları")]
