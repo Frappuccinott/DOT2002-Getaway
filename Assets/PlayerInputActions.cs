@@ -123,7 +123,7 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
                     ""name"": ""Interact"",
                     ""type"": ""Button"",
                     ""id"": ""852140f2-7766-474d-8707-702459ba45f3"",
-                    ""expectedControlType"": ""Button"",
+                    ""expectedControlType"": """",
                     ""processors"": """",
                     ""interactions"": ""Hold"",
                     ""initialStateCheck"": false
@@ -1179,6 +1179,15 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Camera"",
+                    ""type"": ""Button"",
+                    ""id"": ""75990109-9d63-4efe-b3bf-4cc9417eb2f1"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -1324,6 +1333,17 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
                     ""action"": ""Headlights"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""5778831b-6001-4fce-a493-d1d5623c0340"",
+                    ""path"": ""<Keyboard>/v"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""Camera"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -1422,6 +1442,7 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
         m_Driving_Move = m_Driving.FindAction("Move", throwIfNotFound: true);
         m_Driving_Handbrake = m_Driving.FindAction("Handbrake", throwIfNotFound: true);
         m_Driving_Headlights = m_Driving.FindAction("Headlights", throwIfNotFound: true);
+        m_Driving_Camera = m_Driving.FindAction("Camera", throwIfNotFound: true);
     }
 
     ~@PlayerInputActions()
@@ -1919,6 +1940,7 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
     private readonly InputAction m_Driving_Move;
     private readonly InputAction m_Driving_Handbrake;
     private readonly InputAction m_Driving_Headlights;
+    private readonly InputAction m_Driving_Camera;
     /// <summary>
     /// Provides access to input actions defined in input action map "Driving".
     /// </summary>
@@ -1942,6 +1964,10 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Driving/Headlights".
         /// </summary>
         public InputAction @Headlights => m_Wrapper.m_Driving_Headlights;
+        /// <summary>
+        /// Provides access to the underlying input action "Driving/Camera".
+        /// </summary>
+        public InputAction @Camera => m_Wrapper.m_Driving_Camera;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1977,6 +2003,9 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
             @Headlights.started += instance.OnHeadlights;
             @Headlights.performed += instance.OnHeadlights;
             @Headlights.canceled += instance.OnHeadlights;
+            @Camera.started += instance.OnCamera;
+            @Camera.performed += instance.OnCamera;
+            @Camera.canceled += instance.OnCamera;
         }
 
         /// <summary>
@@ -1997,6 +2026,9 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
             @Headlights.started -= instance.OnHeadlights;
             @Headlights.performed -= instance.OnHeadlights;
             @Headlights.canceled -= instance.OnHeadlights;
+            @Camera.started -= instance.OnCamera;
+            @Camera.performed -= instance.OnCamera;
+            @Camera.canceled -= instance.OnCamera;
         }
 
         /// <summary>
@@ -2293,5 +2325,12 @@ public partial class @PlayerInputActions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnHeadlights(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Camera" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnCamera(InputAction.CallbackContext context);
     }
 }

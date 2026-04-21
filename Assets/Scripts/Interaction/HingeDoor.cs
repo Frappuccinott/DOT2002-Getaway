@@ -1,6 +1,5 @@
 using UnityEngine;
 
-// [RequireComponent(typeof(Collider))]
 public class HingeDoor : MonoBehaviour
 {
     public enum DoorType { CarDoor, Hood, Trunk, FuelCap, HangarDoor, GenericDoor }
@@ -77,7 +76,9 @@ public class HingeDoor : MonoBehaviour
 
     public void ToggleOpen()
     {
-        float mid = (minAngle + maxAngle) / 2f;
-        targetAngle = currentAngle < mid ? maxAngle : minAngle;
+        float distToMin = Mathf.Abs(currentAngle - minAngle);
+        float distToMax = Mathf.Abs(currentAngle - maxAngle);
+
+        targetAngle = (distToMin < distToMax) ? maxAngle : minAngle;
     }
 }

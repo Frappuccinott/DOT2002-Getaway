@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -53,6 +54,30 @@ public class CarController : MonoBehaviour
     public Transform gasPedalMesh;
     public float pedalSmoothness = 10f;
 
+    [Header("--- Vites Topuzu ---")]
+    public Transform gearShiftMesh;
+    public float gearShiftSmoothness = 15f;
+    public Vector3 neutralRot = Vector3.zero;
+    public Vector3 reverseRot = new Vector3(340f, 24f, 351f);
+    public Vector3 gear1Rot = new Vector3(20f, 336f, 351f);
+    public Vector3 gear2Rot = new Vector3(-20f, 336f, 351f);
+    public Vector3 gear3Rot = new Vector3(20f, 0f, 0f);
+    public Vector3 gear4Rot = new Vector3(-20f, 0f, 0f);
+    public Vector3 gear5Rot = new Vector3(20f, 24f, 351f);
+
+    [ContextMenu("Vites Rotasyonlarını Otomatik Doldur")]
+    private void FillGearRotations()
+    {
+        gearShiftSmoothness = 15f;
+        neutralRot = Vector3.zero;
+        reverseRot = new Vector3(340f, 24f, 351f);
+        gear1Rot = new Vector3(20f, 336f, 351f);
+        gear2Rot = new Vector3(-20f, 336f, 351f);
+        gear3Rot = new Vector3(20f, 0f, 0f);
+        gear4Rot = new Vector3(-20f, 0f, 0f);
+        gear5Rot = new Vector3(20f, 24f, 351f);
+    }
+
     [Header("--- Gövde Salınımı (Ağırlık Transferi) ---")]
     public Transform carBody;
     public float bodyPitchMultiplier = 2f;
@@ -79,13 +104,13 @@ public class CarController : MonoBehaviour
 
     [Header("Akü Kadranı")]
     public Transform batteryNeedle;
-    public float batteryEmptyAngle = 180f;
-    public float batteryFullAngle = 0f;
+    public float batteryEmptyAngle = 139f;
+    public float batteryFullAngle = 220f;
 
     [Header("Hararet (Su) Kadranı")]
-    public Transform waterNeedle; // Hararet (Su) ibresi
-    public float waterEmptyAngle = 180f; // 0 Litre Su (Aşırı Sıcak)
-    public float waterFullAngle = 0f;    // 5 Litre Su (Soğuk/Normal)
+    public Transform waterNeedle;
+    public float waterEmptyAngle = 151f;
+    public float waterFullAngle = 208f;
     
     private float displaySpeed = 0f;
 
@@ -96,7 +121,6 @@ public class CarController : MonoBehaviour
 
     private CarStartSystem carStartSystem;
 
-    // Gerçek Tanklardan Dinamik Okuma
     public float currentFuelLiters => carStartSystem?.GetTank(FluidType.Gasoline)?.CurrentFluid ?? 0f;
     public float maxFuelLiters => carStartSystem?.GetTank(FluidType.Gasoline)?.MaxCapacity ?? 40f;
 
@@ -126,6 +150,16 @@ public class CarController : MonoBehaviour
     private string previousGear = "N";
     private int currentGearInt = 1;
     private float displayRPM = 0f;
+
+    public float DisplayRPM => displayRPM;
+    public float DisplaySpeed => displaySpeed;
+    public bool IsHandbrakeEngaged => isHandbrakeEngaged;
+    public bool AreHeadlightsOn => areHeadlightsOn;
+    public string DisplayGear => displayGear;
+
+    public event Action<bool> OnHandbrakeToggled;
+    public event Action<bool> OnHeadlightsToggled;
+    public event Action OnGearShifted;
 
     private Vector2 moveInput;
     private Rigidbody rb;
@@ -226,35 +260,53 @@ public class CarController : MonoBehaviour
         isHandbrakeEngaged = !isHandbrakeEngaged;
         targetHandbrakeRot = isHandbrakeEngaged ? -30f : 10f;
         if (handbrakeLight != null && currentBatteryPercent > 0f) handbrakeLight.SetActive(isHandbrakeEngaged);
+        OnHandbrakeToggled?.Invoke(isHandbrakeEngaged);
     }
 
     private void ToggleHeadlights(InputAction.CallbackContext context)
     {
         if (!isHandsOnWheel) return;
-
-        if (currentBatteryPercent <= 0f) return; // Akü bittiyse far anahtarı çalışmaz
+        if (currentBatteryPercent <= 0f) return;
 
         areHeadlightsOn = !areHeadlightsOn;
         if (headlights != null)
         {
             foreach (var light in headlights) { if (light != null) light.SetActive(areHeadlightsOn); }
         }
+        OnHeadlightsToggled?.Invoke(areHeadlightsOn);
     }
 
     private void Update()
     {
+        // DEV CHEAT: Cursor kilitli olduğu için F12 tuşuna atandı!
+        if (Keyboard.current != null && Keyboard.current.f12Key.wasPressedThisFrame)
+        {
+            if (carStartSystem != null) carStartSystem.DevQuickStart();
+            currentBatteryPercent = maxBatteryPercent;
+            Debug.Log("[DEV CHEAT] Araba parçaları ve depolar fullendi! Artık arabaya binip çalıştırabilirsiniz.");
+        }
+
         bool isShiftPressed = Keyboard.current != null && Keyboard.current.shiftKey.isPressed;
 
         if (isHandsOnWheel)
         {
             if (moveAction != null) moveInput = moveAction.ReadValue<Vector2>();
 
-            // Engine starting logic
-            if (carStartSystem != null && !carStartSystem.IsRunning)
+            if (carStartSystem != null)
             {
-                if (isShiftPressed && moveInput.y > 0.5f)
+                if (!carStartSystem.IsRunning)
                 {
-                    carStartSystem.TryStart();
+                    if (isShiftPressed && moveInput.y > 0.5f)
+                    {
+                        carStartSystem.TryStart();
+                    }
+                }
+                else
+                {
+                    if (isShiftPressed && moveInput.y < -0.5f)
+                    {
+                        carStartSystem.StopEngine();
+                    }
                 }
             }
         }
@@ -271,19 +323,17 @@ public class CarController : MonoBehaviour
 
     private void UpdateBrakeLights()
     {
-        if (brakeLights != null && brakeLights.Length > 0)
+        if (brakeLights == null || brakeLights.Length == 0) return;
+
+        bool isBraking = (moveInput.y < 0) && (currentBatteryPercent > 0f);
+        foreach (var light in brakeLights)
         {
-            bool isBraking = (moveInput.y < 0) && (currentBatteryPercent > 0f); // Fren lambaları için elektrik şart
-            foreach (var light in brakeLights)
-            {
-                if (light != null && light.activeSelf != isBraking) light.SetActive(isBraking);
-            }
+            if (light != null && light.activeSelf != isBraking) light.SetActive(isBraking);
         }
     }
 
     private void UpdateWarningLights()
     {
-        // Temel Kural: Akü takılı değilse veya %0 ise TÜM ışıklar (ve göstergeler) yanmayı bırakır (karanlığa gömülür).
         bool hasPower = currentBatteryPercent > 0f && (carStartSystem != null && carStartSystem.HasBattery);
 
         SetWarningLight(fuelWarningLight, currentFuelLiters, fuelWarningThreshold, hasPower);
@@ -296,7 +346,6 @@ public class CarController : MonoBehaviour
     {
         if (lightObj == null) return;
 
-        // Akü bittiyse ışık tamamen kapanır.
         if (!hasPower)
         {
             if (lightObj.activeSelf) lightObj.SetActive(false);
@@ -305,18 +354,15 @@ public class CarController : MonoBehaviour
 
         if (currentValue <= 0f)
         {
-            // Değer TAMAMEN 0 olduysa: Işık SÜREKLİ YANIK kalır (Kritik hata / Motor Durdu vb.)
             if (!lightObj.activeSelf) lightObj.SetActive(true);
         }
         else if (currentValue <= threshold)
         {
-            // Değer threshold sınırından az ama 0'dan büyükse: YANIP SÖNER (Uyarı)
             bool blinkState = Mathf.PingPong(Time.time * warningBlinkSpeed, 1f) > 0.5f;
             if (lightObj.activeSelf != blinkState) lightObj.SetActive(blinkState);
         }
         else
         {
-            // Değer güvenliyse: Işık KAPALI kalır
             if (lightObj.activeSelf) lightObj.SetActive(false);
         }
     }
@@ -327,7 +373,7 @@ public class CarController : MonoBehaviour
         float oilDrainRate = 0.0001f + (speedKMH * 0.00001f);
         float waterDrainRate = 0.0002f + (speedKMH * 0.00005f);
 
-        if (carStartSystem != null)
+        if (carStartSystem != null && carStartSystem.IsRunning)
         {
             float deltaMutliplier = consumptionMultiplier * Time.deltaTime;
             carStartSystem.GetTank(FluidType.Gasoline)?.ConsumeFluid(fuelDrainRate * deltaMutliplier);
@@ -335,14 +381,13 @@ public class CarController : MonoBehaviour
             carStartSystem.GetTank(FluidType.Coolant)?.ConsumeFluid(waterDrainRate * deltaMutliplier);
         }
         
-        if (carStartSystem != null && carStartSystem.HasBattery)
+        if (carStartSystem != null && carStartSystem.HasBattery && carStartSystem.IsRunning)
         {
             float batteryDrainRate = 0.005f + (areHeadlightsOn ? 0.05f : 0f);
             currentBatteryPercent -= batteryDrainRate * consumptionMultiplier * Time.deltaTime;
             currentBatteryPercent = Mathf.Max(0f, currentBatteryPercent);
         }
 
-        // Akü sıfırlandığı an, açık unutulmuş/açık kalmış farları ve el freni lambasını da anında söndürürüz
         if (currentBatteryPercent <= 0f || (carStartSystem != null && !carStartSystem.HasBattery))
         {
             if (areHeadlightsOn)
@@ -437,45 +482,91 @@ public class CarController : MonoBehaviour
         ApplyWeightTransfer(acceleration, targetSteerAngle);
     }
 
-    private void UpdateAnalogDials()
+    private void SmoothNeedle(Transform needle, float targetAngle, float speed)
+    {
+        if (needle == null) return;
+        float currentZ = needle.localEulerAngles.z;
+        float smoothZ = Mathf.LerpAngle(currentZ, targetAngle, Time.deltaTime * speed);
+        needle.localRotation = Quaternion.Euler(needle.localEulerAngles.x, needle.localEulerAngles.y, smoothZ);
+    }
+
+    private bool isSweepingDials = false;
+
+    public void PlayStartupSweep()
+    {
+        if (!isSweepingDials) StartCoroutine(StartupSweepRoutine());
+    }
+
+    private System.Collections.IEnumerator StartupSweepRoutine()
+    {
+        isSweepingDials = true;
+        
+        float duration = 3.0f; // 3 saniye
+        float halfDuration = duration / 2f;
+        float elapsed = 0f;
+
+        // Phase 1: İbreleri Max seviyeye taşı
+        while (elapsed < halfDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / halfDuration;
+            float smoothT = Mathf.SmoothStep(0f, 1f, t);
+            SetSweepAngles(smoothT);
+            yield return null;
+        }
+
+        // Phase 2: İbreleri Min seviyeye taşı (Gerçek pozisyonlarına SmoothNeedle dönünce geçerler)
+        elapsed = 0f;
+        while (elapsed < halfDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / halfDuration;
+            float smoothT = Mathf.SmoothStep(1f, 0f, t);
+            SetSweepAngles(smoothT);
+            yield return null;
+        }
+
+        isSweepingDials = false;
+    }
+
+    private void SetSweepAngles(float t)
     {
         if (speedometerNeedle != null)
         {
-            float targetNeedleAngle = speedometerCurve.Evaluate(displaySpeed);
-            float currentNeedleAngle = speedometerNeedle.localEulerAngles.z;
-            float smoothZ = Mathf.LerpAngle(currentNeedleAngle, targetNeedleAngle, Time.deltaTime * 6f);
-            speedometerNeedle.localRotation = Quaternion.Euler(speedometerNeedle.localEulerAngles.x, speedometerNeedle.localEulerAngles.y, smoothZ);
+            float angle = Mathf.Lerp(speedometerCurve.Evaluate(0f), speedometerCurve.Evaluate(220f), t);
+            speedometerNeedle.localRotation = Quaternion.Euler(speedometerNeedle.localEulerAngles.x, speedometerNeedle.localEulerAngles.y, angle);
         }
-
         if (fuelNeedle != null)
         {
-            float fillRatio = currentFuelLiters / maxFuelLiters;
-            float targetFuelAngle = Mathf.Lerp(fuelEmptyAngle, fuelFullAngle, fillRatio);
-            float currentFuelZ = fuelNeedle.localEulerAngles.z;
-            float smoothZ = Mathf.LerpAngle(currentFuelZ, targetFuelAngle, Time.deltaTime * 2f);
-            fuelNeedle.localRotation = Quaternion.Euler(fuelNeedle.localEulerAngles.x, fuelNeedle.localEulerAngles.y, smoothZ);
+            float angle = Mathf.Lerp(fuelEmptyAngle, fuelFullAngle, t);
+            fuelNeedle.localRotation = Quaternion.Euler(fuelNeedle.localEulerAngles.x, fuelNeedle.localEulerAngles.y, angle);
         }
-
         if (batteryNeedle != null)
         {
-            float effectiveBattery = (carStartSystem != null && carStartSystem.HasBattery) ? currentBatteryPercent : 0f;
-            float fillRatio = effectiveBattery / maxBatteryPercent;
-            float targetBatteryAngle = Mathf.Lerp(batteryEmptyAngle, batteryFullAngle, fillRatio);
-            float currentBatZ = batteryNeedle.localEulerAngles.z;
-            float smoothZ = Mathf.LerpAngle(currentBatZ, targetBatteryAngle, Time.deltaTime * 2f);
-            batteryNeedle.localRotation = Quaternion.Euler(batteryNeedle.localEulerAngles.x, batteryNeedle.localEulerAngles.y, smoothZ);
+            float angle = Mathf.Lerp(batteryEmptyAngle, batteryFullAngle, t);
+            batteryNeedle.localRotation = Quaternion.Euler(batteryNeedle.localEulerAngles.x, batteryNeedle.localEulerAngles.y, angle);
         }
-
-        // 4. Hararet (Su) İbresini Güncelle
         if (waterNeedle != null)
         {
-            float fillRatio = currentCoolingWaterLiters / maxCoolingWaterLiters;
-            // Su azaldıkça ibre "Sıcak" tarafa (Empty/EmptyAngle) gidecek. Su tam doluyken "Soğuk" tarafa (FullAngle) gidecek.
-            float targetWaterAngle = Mathf.Lerp(waterEmptyAngle, waterFullAngle, fillRatio);
-            float currentWaterZ = waterNeedle.localEulerAngles.z;
-            float smoothZ = Mathf.LerpAngle(currentWaterZ, targetWaterAngle, Time.deltaTime * 2f);
-            waterNeedle.localRotation = Quaternion.Euler(waterNeedle.localEulerAngles.x, waterNeedle.localEulerAngles.y, smoothZ);
+            float angle = Mathf.Lerp(waterEmptyAngle, waterFullAngle, t);
+            waterNeedle.localRotation = Quaternion.Euler(waterNeedle.localEulerAngles.x, waterNeedle.localEulerAngles.y, angle);
         }
+    }
+
+    private void UpdateAnalogDials()
+    {
+        if (isSweepingDials) return;
+
+        SmoothNeedle(speedometerNeedle, speedometerCurve.Evaluate(displaySpeed), 6f);
+
+        float fuelRatio = currentFuelLiters / maxFuelLiters;
+        SmoothNeedle(fuelNeedle, Mathf.Lerp(fuelEmptyAngle, fuelFullAngle, fuelRatio), 2f);
+
+        float effectiveBattery = (carStartSystem != null && carStartSystem.HasBattery) ? currentBatteryPercent : 0f;
+        SmoothNeedle(batteryNeedle, Mathf.Lerp(batteryEmptyAngle, batteryFullAngle, effectiveBattery / maxBatteryPercent), 2f);
+
+        float waterRatio = currentCoolingWaterLiters / maxCoolingWaterLiters;
+        SmoothNeedle(waterNeedle, Mathf.Lerp(waterEmptyAngle, waterFullAngle, waterRatio), 2f);
     }
 
     private void CalculateHUDData(float acceleration, bool isMovingForward, float speedKMH)
@@ -522,6 +613,7 @@ public class CarController : MonoBehaviour
         if (displayGear != previousGear && displayGear != "N")
         {
             TriggerGearShiftJolt();
+            OnGearShifted?.Invoke();
         }
         previousGear = displayGear;
 
@@ -560,53 +652,51 @@ public class CarController : MonoBehaviour
 
     private void ApplyWeightTransfer(float acceleration, float steerAngle)
     {
-        if (carBody != null)
+        if (carBody == null) return;
+
+        float speedKMH = rb.linearVelocity.magnitude * 3.6f;
+
+        if (currentShiftTimer > 0)
         {
-            float speedKMH = rb.linearVelocity.magnitude * 3.6f;
-
-            if (currentShiftTimer > 0)
-            {
-                targetBodyPitch = gearShiftJoltForce;
-            }
-            else
-            {
-                if (acceleration != 0)
-                {
-                    targetBodyPitch = Mathf.Clamp(-acceleration * bodyPitchMultiplier, -bodyPitchMultiplier, bodyPitchMultiplier);
-                }
-                else 
-                {
-                    if (speedKMH > 5f && moveInput.y < 0) 
-                        targetBodyPitch = Mathf.Clamp(brakeTorque * 0.001f * bodyPitchMultiplier, -bodyPitchMultiplier, bodyPitchMultiplier);
-                    else 
-                        targetBodyPitch = 0f;
-                }
-            }
-
-            targetBodyRoll = Mathf.Clamp(-currentSteerAngle / maxSteeringAngle * bodyRollMultiplier * (speedKMH / 50f), -bodyRollMultiplier, bodyRollMultiplier);
-
-            Quaternion targetRotation = Quaternion.Euler(targetBodyPitch, 0f, targetBodyRoll);
-            float smoothness = (currentShiftTimer > 0) ? bodySmoothness * 3f : bodySmoothness;
-            carBody.localRotation = Quaternion.Slerp(carBody.localRotation, targetRotation, Time.deltaTime * smoothness);
+            targetBodyPitch = gearShiftJoltForce;
         }
+        else
+        {
+            if (acceleration != 0)
+            {
+                targetBodyPitch = Mathf.Clamp(-acceleration * bodyPitchMultiplier, -bodyPitchMultiplier, bodyPitchMultiplier);
+            }
+            else 
+            {
+                if (speedKMH > 5f && moveInput.y < 0) 
+                    targetBodyPitch = Mathf.Clamp(brakeTorque * 0.001f * bodyPitchMultiplier, -bodyPitchMultiplier, bodyPitchMultiplier);
+                else 
+                    targetBodyPitch = 0f;
+            }
+        }
+
+        targetBodyRoll = Mathf.Clamp(-currentSteerAngle / maxSteeringAngle * bodyRollMultiplier * (speedKMH / 50f), -bodyRollMultiplier, bodyRollMultiplier);
+
+        Quaternion targetRotation = Quaternion.Euler(targetBodyPitch, 0f, targetBodyRoll);
+        float smoothness = (currentShiftTimer > 0) ? bodySmoothness * 3f : bodySmoothness;
+        carBody.localRotation = Quaternion.Slerp(carBody.localRotation, targetRotation, Time.deltaTime * smoothness);
     }
 
     private void TriggerGearShiftJolt()
     {
-        if (displayGear != "R" && displayGear != "N")
-        {
-            bool isUpshift = false;
-            if (int.TryParse(displayGear, out int curG) && int.TryParse(previousGear, out int prevG))
-            {
-                isUpshift = curG > prevG;
-            }
+        if (displayGear == "R" || displayGear == "N") return;
 
-            if (isUpshift)
-            {
-                float dynamicShiftDelay = displaySpeed > 70f ? gearShiftDelay * 0.2f : gearShiftDelay;
-                currentShiftTimer = dynamicShiftDelay; 
-                displayRPM *= 0.65f;
-            }
+        bool isUpshift = false;
+        if (int.TryParse(displayGear, out int curG) && int.TryParse(previousGear, out int prevG))
+        {
+            isUpshift = curG > prevG;
+        }
+
+        if (isUpshift)
+        {
+            float dynamicShiftDelay = displaySpeed > 70f ? gearShiftDelay * 0.2f : gearShiftDelay;
+            currentShiftTimer = dynamicShiftDelay; 
+            displayRPM *= 0.65f;
         }
     }
 
@@ -627,6 +717,22 @@ public class CarController : MonoBehaviour
 
     private void AnimateInteriors(bool isShiftPressed)
     {
+        if (gearShiftMesh)
+        {
+            Vector3 targetGearRot = neutralRot;
+            switch (displayGear)
+            {
+                case "R": targetGearRot = reverseRot; break;
+                case "1": targetGearRot = gear1Rot; break;
+                case "2": targetGearRot = gear2Rot; break;
+                case "3": targetGearRot = gear3Rot; break;
+                case "4": targetGearRot = gear4Rot; break;
+                case "5": targetGearRot = gear5Rot; break;
+                case "N": default: targetGearRot = neutralRot; break;
+            }
+            gearShiftMesh.localRotation = Quaternion.Slerp(gearShiftMesh.localRotation, Quaternion.Euler(targetGearRot), Time.deltaTime * gearShiftSmoothness);
+        }
+
         if (handbrakeMesh)
         {
             float speed = 40f / handbrakeDuration;

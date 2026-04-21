@@ -1,11 +1,13 @@
-using UnityEngine;
+using System;
 using System.Linq;
+using UnityEngine;
+using UnityEngine.Events;
 
 public class CarStartSystem : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private CarAssemblyManager assemblyManager;
-    [SerializeField] private CarFluidTank[] fluidTanks; // Inspector'dan atanabilir veya Start() ile otomatik bulunur
+    [SerializeField] private CarFluidTank[] fluidTanks;
 
     [Header("Minimum Fluid Requirements")]
     [SerializeField] private float minimumFuel = 1f;
@@ -13,13 +15,19 @@ public class CarStartSystem : MonoBehaviour
     [SerializeField] private float minimumCoolant = 1f;
 
     private bool isRunning;
+    public bool cheatEngineInstalled = false;
 
     public bool IsRunning => isRunning;
-    public bool HasBattery => assemblyManager != null && assemblyManager.IsPartInstalled(CarPartType.Battery);
+    public bool HasBattery => cheatEngineInstalled || (assemblyManager != null && assemblyManager.IsPartInstalled(CarPartType.Battery));
+
+    public event Action<CarStartResult> OnStartAttempt;
+    public event Action OnEngineStopped;
+
+    [Header("--- Unity Events (Gereksinim İçin) ---")]
+    public UnityEvent onEngineSuccessfullyStarted;
 
     private void Start()
     {
-        // Eğer Inspector'dan atanmadıysa araç üzerindeki tüm tankları bul
         if (fluidTanks == null || fluidTanks.Length == 0)
         {
             fluidTanks = GetComponentsInChildren<CarFluidTank>(true);
@@ -41,19 +49,30 @@ public class CarStartSystem : MonoBehaviour
             {
                 isRunning = false;
                 Debug.LogWarning("[CarStart] ENGINE DIED: A critical part was removed or fluid dropped below minimum.");
+                OnEngineStopped?.Invoke();
             }
         }
     }
 
     public CarStartResult TryStart()
     {
-        return CheckConditions(true);
+        CarStartResult result = CheckConditions(true);
+        OnStartAttempt?.Invoke(result);
+        return result;
+    }
+
+    public void DevQuickStart()
+    {
+        cheatEngineInstalled = true;
+        GetTank(FluidType.Gasoline)?.AddFluid(999f);
+        GetTank(FluidType.MotorOil)?.AddFluid(999f);
+        GetTank(FluidType.Coolant)?.AddFluid(999f);
     }
 
     private CarStartResult CheckConditions(bool isStartingAttempt)
     {
-        bool hasEngine = assemblyManager != null && assemblyManager.IsPartInstalled(CarPartType.Engine);
-        bool hasRadiator = assemblyManager != null && assemblyManager.IsPartInstalled(CarPartType.Radiator);
+        bool hasEngine = cheatEngineInstalled || (assemblyManager != null && assemblyManager.IsPartInstalled(CarPartType.Engine));
+        bool hasRadiator = cheatEngineInstalled || (assemblyManager != null && assemblyManager.IsPartInstalled(CarPartType.Radiator));
 
         CarFluidTank fuelTank = GetTank(FluidType.Gasoline);
         CarFluidTank oilTank = GetTank(FluidType.MotorOil);
@@ -70,16 +89,7 @@ public class CarStartSystem : MonoBehaviour
         bool hasEnoughOil = currentOil >= minimumOil;
         bool hasEnoughCoolant = currentCoolant >= minimumCoolant;
 
-        if (isStartingAttempt)
-        {
-            Debug.Log("=== [CarStart] IGNITION ATTEMPT ===");
-            Debug.Log($"[CarStart] Battery:   {(HasBattery ? "INSTALLED" : "MISSING")}");
-            Debug.Log($"[CarStart] Engine:    {(hasEngine ? "INSTALLED" : "MISSING")}");
-            Debug.Log($"[CarStart] Radiator:  {(hasRadiator ? "INSTALLED" : "MISSING")}");
-            Debug.Log($"[CarStart] Fuel:      {currentFuel:F1}/{maxFuel:F0} L (min {minimumFuel:F0} L) — {(hasEnoughFuel ? "OK" : "LOW")}");
-            Debug.Log($"[CarStart] Oil:       {currentOil:F1}/{maxOil:F0} L (min {minimumOil:F0} L) — {(hasEnoughOil ? "OK" : "LOW")}");
-            Debug.Log($"[CarStart] Coolant:   {currentCoolant:F1}/{maxCoolant:F0} L (min {minimumCoolant:F0} L) — {(hasEnoughCoolant ? "OK" : "LOW")}");
-        }
+        // Test logs removed for cleaner console.
 
         if (!HasBattery)
         {
@@ -121,6 +131,7 @@ public class CarStartSystem : MonoBehaviour
         {
             isRunning = true;
             Debug.Log("[CarStart] RESULT: Car started successfully!");
+            onEngineSuccessfullyStarted?.Invoke();
         }
         return CarStartResult.Started;
     }
@@ -130,6 +141,7 @@ public class CarStartSystem : MonoBehaviour
         if (!isRunning) return;
         isRunning = false;
         Debug.Log("[CarStart] Engine stopped.");
+        OnEngineStopped?.Invoke();
     }
 }
 

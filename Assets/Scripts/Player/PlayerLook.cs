@@ -1,50 +1,35 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Unity.Cinemachine;
 
-/// <summary>
-/// FPS kamera bakış kontrolcüsü.
-/// Mouse ile yatay/dikey bakış açısını yönetir.
-/// Yatay döndürme player objesine, dikey döndürme kameraya uygulanır.
-/// </summary>
 public class PlayerLook : MonoBehaviour
 {
-    #region Settings
-
     [Header("Bakış Ayarları")]
-    [Tooltip("Mouse hassasiyeti")]
     [SerializeField] private float mouseSensitivity = 2f;
-
-    [Tooltip("Yukarı/aşağı bakma açı limiti (derece)")]
     [SerializeField] private float maxLookAngle = 80f;
-
-    [Tooltip("Bakış için kullanılacak kamera (boş bırakılırsa child'dan otomatik bulunur)")]
     [SerializeField] private Transform cameraTransform;
 
     [Header("Zoom Ayarları")]
-    [Tooltip("Zoom aktifken hedeflenen FOV değeri")]
     [SerializeField] private float zoomFOV = 40f;
-    [Tooltip("Zoom geçiş hızı")]
     [SerializeField] private float zoomSpeed = 10f;
 
-    #endregion
-
-    // Input referansı
     private PlayerInputActions inputActions;
 
-    // Dahili durum
     private float verticalRotation = 0f;
     private bool isSnappingToSeat = false;
     private Quaternion targetPlayerRotation;
     private Quaternion targetCameraRotation;
     private Camera playerCamera;
+    private CinemachineCamera cinemachineCam;
     private float defaultFOV;
     private bool isZooming = false;
+    private PlayerController playerController;
 
     private void Awake()
     {
+        playerController = GetComponent<PlayerController>();
         inputActions = new PlayerInputActions();
 
-        // Kamera referansı atanmadıysa child'dan bul
         if (cameraTransform == null)
         {
             Camera cam = GetComponentInChildren<Camera>();
@@ -61,9 +46,15 @@ public class PlayerLook : MonoBehaviour
         if (cameraTransform != null)
         {
             playerCamera = cameraTransform.GetComponent<Camera>();
+            cinemachineCam = cameraTransform.GetComponent<CinemachineCamera>();
+
             if (playerCamera != null)
             {
                 defaultFOV = playerCamera.fieldOfView;
+            }
+            else if (cinemachineCam != null)
+            {
+                defaultFOV = cinemachineCam.Lens.FieldOfView;
             }
         }
     }
@@ -75,7 +66,6 @@ public class PlayerLook : MonoBehaviour
         inputActions.Player.Zoom.started += OnZoomStarted;
         inputActions.Player.Zoom.canceled += OnZoomCanceled;
 
-        // İmleci kilitle ve gizle
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -87,7 +77,6 @@ public class PlayerLook : MonoBehaviour
 
         inputActions.Player.Disable();
 
-        // İmleci serbest bırak
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
@@ -105,10 +94,18 @@ public class PlayerLook : MonoBehaviour
 
     private void HandleZoom()
     {
-        if (playerCamera == null) return;
-        
         float targetFOV = isZooming ? zoomFOV : defaultFOV;
-        playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, targetFOV, zoomSpeed * Time.deltaTime);
+        
+        if (playerCamera != null)
+        {
+            playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, targetFOV, zoomSpeed * Time.deltaTime);
+        }
+        else if (cinemachineCam != null)
+        {
+            var lens = cinemachineCam.Lens;
+            lens.FieldOfView = Mathf.Lerp(lens.FieldOfView, targetFOV, zoomSpeed * Time.deltaTime);
+            cinemachineCam.Lens = lens;
+        }
     }
 
     private void OnZoomStarted(InputAction.CallbackContext context)
@@ -130,18 +127,21 @@ public class PlayerLook : MonoBehaviour
         else
             targetPlayerRotation = transform.rotation;
 
-        targetCameraRotation = Quaternion.Euler(0f, 0f, 0f); // İleri bak
+        targetCameraRotation = Quaternion.Euler(0f, 0f, 0f);
         isSnappingToSeat = true;
     }
 
     public void StopSnapping()
     {
         isSnappingToSeat = false;
+
+        // Arabadan inince kameranın Y sapmasını sıfırla
+        if (cameraTransform != null)
+        {
+            cameraTransform.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);
+        }
     }
 
-    /// <summary>
-    /// Mouse girdisine göre bakış açısını günceller veya oturma eylemi sırasında pürüzsüz kamera geçişi yapar.
-    /// </summary>
     private void HandleLook()
     {
         if (cameraTransform == null) return;
@@ -155,21 +155,31 @@ public class PlayerLook : MonoBehaviour
             if (Quaternion.Angle(transform.rotation, targetPlayerRotation) < 1f &&
                 Quaternion.Angle(cameraTransform.localRotation, targetCameraRotation) < 1f)
             {
-                isSnappingToSeat = false; // Geçiş bitti, serbest bırak
+                isSnappingToSeat = false;
             }
             return;
         }
 
-        // Look action'dan mouse delta'sını al
         Vector2 lookInput = inputActions.Player.Look.ReadValue<Vector2>();
-
-        // Yatay döndürme (player objesini Y ekseninde döndür)
         float horizontalRotation = lookInput.x * mouseSensitivity;
-        transform.Rotate(Vector3.up * horizontalRotation);
 
-        // Dikey döndürme (kamerayı X ekseninde döndür, sınırlı)
-        verticalRotation -= lookInput.y * mouseSensitivity;
-        verticalRotation = Mathf.Clamp(verticalRotation, -maxLookAngle, maxLookAngle);
-        cameraTransform.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);
+        if (playerController != null && playerController.IsSitting)
+        {
+            // Arabada otururken: Karakterin gövdesini döndürme, sadece kafayı (kamerayı) olduğu yerde sağa/sola ve yukarı/aşağı çevir.
+            verticalRotation -= lookInput.y * mouseSensitivity;
+            verticalRotation = Mathf.Clamp(verticalRotation, -maxLookAngle, maxLookAngle);
+            
+            float targetY = cameraTransform.localEulerAngles.y + horizontalRotation;
+            cameraTransform.localRotation = Quaternion.Euler(verticalRotation, targetY, 0f);
+        }
+        else
+        {
+            // Ayaktayken: Klasik FPS (Gövde sağa-sola, kafa aşağı-yukarı)
+            transform.Rotate(Vector3.up * horizontalRotation);
+            
+            verticalRotation -= lookInput.y * mouseSensitivity;
+            verticalRotation = Mathf.Clamp(verticalRotation, -maxLookAngle, maxLookAngle);
+            cameraTransform.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);
+        }
     }
 }

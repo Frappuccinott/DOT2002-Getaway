@@ -20,7 +20,7 @@ public class PlayerInteraction : MonoBehaviour
     [Header("Sıvı Aktarımı")]
     [SerializeField] private float fluidTransferRate = 2f;
 
-    [Header("Etkileşim Metinleri (İngilizce)")]
+    [Header("Etkileşim Metinleri")]
     [SerializeField] private string takeFluidContainerPrompt = "Press [F] to grab";
     [SerializeField] private string takeCarPartPrompt = "Press [F] to grab";
     [SerializeField] private string dropPrompt = "Press [F] to drop";
@@ -56,6 +56,10 @@ public class PlayerInteraction : MonoBehaviour
     private HingeDoor draggedDoor;
     private bool isTransferring;
     private bool interactPressedLastFrame;
+
+    private static readonly Vector3 VIEWPORT_CENTER = new Vector3(0.5f, 0.5f, 0f);
+    private Collider lastHitCollider;
+    private CarStartSystem lastHitCarSys;
 
     public bool HasCarPart => heldPart != null;
     public bool HasFluidContainer => heldFluidContainer != null;
@@ -102,12 +106,12 @@ public class PlayerInteraction : MonoBehaviour
         if (HasCarPart)
         {
             HandleScrollWheel();
-            UpdateHeldPartPosition();
+            UpdateHeldObjectPosition(heldPart.transform);
         }
         else if (HasFluidContainer)
         {
             HandleScrollWheel();
-            UpdateHeldFluidContainerPosition();
+            UpdateHeldObjectPosition(heldFluidContainer.transform);
         }
 
         HandleDoorDrag();
@@ -115,63 +119,64 @@ public class PlayerInteraction : MonoBehaviour
         UpdateUI();
     }
 
-    #region Raycast
-
     private void PerformRaycast()
     {
-        currentInteractable = null;
-        currentDoor = null;
-        currentFluidTank = null;
-        currentIgnition = null;
-        currentSeat = null;
-        isLookingAtCarInterior = false;
-        CarPartSlot lookedSlot = null;
-
         if (playerCamera == null) return;
 
-        Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        Ray ray = playerCamera.ViewportPointToRay(VIEWPORT_CENTER);
 
         if (!Physics.Raycast(ray, out RaycastHit hit, interactionRange, interactionLayer))
         {
             ClearSlotPreview();
+            lastHitCollider = null;
+            currentInteractable = null;
+            currentDoor = null;
+            currentFluidTank = null;
+            currentIgnition = null;
+            currentSeat = null;
+            isLookingAtCarInterior = false;
             return;
+        }
+
+        isLookingAtCarInterior = false;
+
+        // OPTIMIZASYON: Sadece baktığımız obje değiştiyse pahalı GetComponent çağrılarını yap.
+        if (hit.collider != lastHitCollider)
+        {
+            lastHitCollider = hit.collider;
+            
+            currentInteractable = hit.collider.GetComponentInParent<IInteractable>();
+            currentSeat = hit.collider.GetComponentInParent<CarSeat>();
+
+            HingeDoor door = hit.collider.GetComponentInParent<HingeDoor>();
+            currentDoor = (door != null && door.CanOperate) ? door : null;
+
+            currentFluidTank = hit.collider.GetComponentInParent<CarFluidTank>();
+            currentIgnition = hit.collider.GetComponentInParent<CarIgnition>();
+            lastHitCarSys = hit.collider.GetComponentInParent<CarStartSystem>();
+
+            CarPartSlot lookedSlot = hit.collider.GetComponentInParent<CarPartSlot>();
+            if (lookedSlot != lastLookedSlot)
+            {
+                lastLookedSlot?.SetLookedAt(false, false);
+                lastLookedSlot = lookedSlot;
+            }
         }
 
         if (playerController.IsSitting && playerController.CurrentSeat != null)
         {
             Rigidbody seatRb = playerController.CurrentSeat.GetComponentInParent<Rigidbody>();
             Rigidbody hitRb = hit.collider.attachedRigidbody;
-            CarStartSystem hitCar = hit.collider.GetComponentInParent<CarStartSystem>();
-            CarIgnition hitIgnition = hit.collider.GetComponentInParent<CarIgnition>();
 
-            // Eğer vurulan obje arabanın bir parçasıysa "içeri bakıyor" sayalım
-            // AMA araba kontağı (direksiyon) DEĞİLSE. Çünkü eğer araba kontağına bakmıyorsa inmek istiyor olabilir.
-            if (hitIgnition == null)
+            if (currentIgnition == null)
             {
                 if ((seatRb != null && hitRb == seatRb) ||
                     hit.collider.transform.root == playerController.CurrentSeat.root ||
-                    hitCar != null)
+                    lastHitCarSys != null)
                 {
                     isLookingAtCarInterior = true;
                 }
             }
-        }
-
-        currentInteractable = hit.collider.GetComponentInParent<IInteractable>();
-
-        currentSeat = hit.collider.GetComponentInParent<CarSeat>();
-
-        HingeDoor door = hit.collider.GetComponentInParent<HingeDoor>();
-        if (door != null && door.CanOperate) currentDoor = door;
-
-        currentFluidTank = hit.collider.GetComponentInParent<CarFluidTank>();
-        currentIgnition = hit.collider.GetComponentInParent<CarIgnition>();
-        lookedSlot = hit.collider.GetComponentInParent<CarPartSlot>();
-
-        if (lookedSlot != lastLookedSlot)
-        {
-            lastLookedSlot?.SetLookedAt(false, false);
-            lastLookedSlot = lookedSlot;
         }
 
         if (lastLookedSlot != null)
@@ -189,10 +194,6 @@ public class PlayerInteraction : MonoBehaviour
             lastLookedSlot = null;
         }
     }
-
-    #endregion
-
-    #region F Tuşu
 
     private void OnPickupPressed(InputAction.CallbackContext context)
     {
@@ -219,10 +220,6 @@ public class PlayerInteraction : MonoBehaviour
         }
     }
 
-    #endregion
-
-    #region E Tuşu
-
     private void HandleInteractKey()
     {
         bool isInteractHeld = inputActions.Player.Interact.ReadValue<float>() > 0.5f;
@@ -236,13 +233,12 @@ public class PlayerInteraction : MonoBehaviour
                     currentIgnition.ToggleHandsOnWheel();
                 }
             }
-            else if (currentDoor != null && currentDoor.Type == HingeDoor.DoorType.FuelCap && !HasFluidContainer)
+            else if (currentDoor != null && currentDoor.Type == HingeDoor.DoorType.FuelCap)
             {
                 currentDoor.ToggleOpen();
             }
             else if (playerController.IsSitting && !isLookingAtCarInterior && currentIgnition == null && currentDoor == null)
             {
-                // Çıkış yolu kapalı mı kontrolü (kapı açık mı?)
                 if (CanExitVehicle())
                 {
                     if (playerController.CurrentSeat != null)
@@ -274,23 +270,14 @@ public class PlayerInteraction : MonoBehaviour
         }
     }
 
-    #endregion
-
-    #region Araç İçi Kontrolleri
-
     private bool CanExitVehicle()
     {
         if (playerCamera == null || playerController == null) return false;
 
-        // Karakterin kafasından, ineceği yerin tam merkezine doğru bir Linecast atılır
         Vector3 headPos = playerCamera.transform.position;
         Vector3 exitPos = playerController.StandPosition;
+        LayerMask obstacleLayer = ~0;
 
-        // interactionLayer genellikle "Interactable" ve "Default"u kapsar. 
-        // Burada Default (Duvarlar vb) ve Interactable (Kapılar vb) katmanlarını kontrol etmeliyiz.
-        LayerMask obstacleLayer = ~0; // Şimdilik her şeye çarpmasını istiyoruz (kapı dahil)
-
-        // Linecast, bir objeye çarpıyorsa ve bu obje aracın (veya çevrenin) bir engeli ise çıkışı engelle
         if (Physics.Linecast(headPos, exitPos, obstacleLayer))
         {
             return false;
@@ -299,24 +286,43 @@ public class PlayerInteraction : MonoBehaviour
         return true;
     }
 
-    #endregion
-
-    #region Parça Yönetimi
-
-    private void GrabPart(PickupableCarPart part)
+    private void GrabObject(GameObject obj, out Vector3 originalScale)
     {
-        heldPart = part;
-        GameObject obj = part.gameObject;
         obj.SetActive(true);
 
         Rigidbody rb = obj.GetComponent<Rigidbody>();
         if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
 
-        heldPartOriginalScale = obj.transform.localScale;
+        originalScale = obj.transform.localScale;
         obj.transform.SetParent(playerCamera.transform);
-        obj.transform.localScale = heldPartOriginalScale * heldPartScale;
+        obj.transform.localScale = originalScale * heldPartScale;
         SetCollidersEnabled(obj, false);
         currentHoldDistance = holdDistanceDefault;
+    }
+
+    private void DropObject(GameObject obj, Vector3 originalScale)
+    {
+        obj.transform.SetParent(null);
+        obj.transform.localScale = originalScale;
+        SetCollidersEnabled(obj, true);
+        obj.SetActive(true);
+
+        Rigidbody rb = obj.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.useGravity = true;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.AddForce(playerCamera.transform.forward * 1.5f + Vector3.down * 0.5f, ForceMode.VelocityChange);
+            rb.AddTorque(Random.insideUnitSphere * 2f, ForceMode.VelocityChange);
+        }
+    }
+
+    private void GrabPart(PickupableCarPart part)
+    {
+        heldPart = part;
+        GrabObject(part.gameObject, out heldPartOriginalScale);
 
         if (part.PartType == CarPartType.Engine && playerController != null)
             playerController.SetCarrySpeedMultiplier(engineCarrySpeedMultiplier);
@@ -338,24 +344,7 @@ public class PlayerInteraction : MonoBehaviour
     private void DropPart()
     {
         if (heldPart == null) return;
-
-        GameObject obj = heldPart.gameObject;
-        obj.transform.SetParent(null);
-        obj.transform.localScale = heldPartOriginalScale;
-        SetCollidersEnabled(obj, true);
-        obj.SetActive(true);
-
-        Rigidbody rb = obj.GetComponent<Rigidbody>();
-        if (rb != null)
-        {
-            rb.isKinematic = false;
-            rb.useGravity = true;
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-            rb.AddForce(playerCamera.transform.forward * 1.5f + Vector3.down * 0.5f, ForceMode.VelocityChange);
-            rb.AddTorque(Random.insideUnitSphere * 2f, ForceMode.VelocityChange);
-        }
-
+        DropObject(heldPart.gameObject, heldPartOriginalScale);
         ResetCarryState();
     }
 
@@ -365,66 +354,31 @@ public class PlayerInteraction : MonoBehaviour
         if (playerController != null) playerController.SetCarrySpeedMultiplier(1f);
     }
 
-    #endregion
-
-    #region FluidContainer Yönetimi
-
     private void GrabFluidContainer(FluidContainer container)
     {
         heldFluidContainer = container;
-        GameObject obj = container.gameObject;
-        obj.SetActive(true);
-
-        Rigidbody rb = obj.GetComponent<Rigidbody>();
-        if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
-
-        heldFluidContainerOriginalScale = obj.transform.localScale;
-        obj.transform.SetParent(playerCamera.transform);
-        obj.transform.localScale = heldFluidContainerOriginalScale * heldPartScale;
-        SetCollidersEnabled(obj, false);
-        currentHoldDistance = holdDistanceDefault;
+        GrabObject(container.gameObject, out heldFluidContainerOriginalScale);
     }
 
     private void DropFluidContainer()
     {
         if (heldFluidContainer == null) return;
-
-        GameObject obj = heldFluidContainer.gameObject;
-        obj.transform.SetParent(null);
-        obj.transform.localScale = heldFluidContainerOriginalScale;
-        SetCollidersEnabled(obj, true);
-        obj.SetActive(true);
-
-        Rigidbody rb = obj.GetComponent<Rigidbody>();
-        if (rb != null)
-        {
-            rb.isKinematic = false;
-            rb.useGravity = true;
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-            rb.AddForce(playerCamera.transform.forward * 1.5f + Vector3.down * 0.5f, ForceMode.VelocityChange);
-            rb.AddTorque(Random.insideUnitSphere * 2f, ForceMode.VelocityChange);
-        }
-
+        DropObject(heldFluidContainer.gameObject, heldFluidContainerOriginalScale);
         isTransferring = false;
         heldFluidContainer = null;
     }
 
-    private void UpdateHeldFluidContainerPosition()
+    private void UpdateHeldObjectPosition(Transform heldTransform)
     {
-        if (playerCamera == null || heldFluidContainer == null) return;
+        if (playerCamera == null || heldTransform == null) return;
         
         float headBobOffset = playerCamera.transform.localPosition.y - _cameraDefaultYPosition;
         Vector3 baseTarget = playerCamera.transform.position + playerCamera.transform.forward * currentHoldDistance;
         Vector3 finalTarget = baseTarget + (playerCamera.transform.up * headBobOffset);
 
-        heldFluidContainer.transform.position = Vector3.Lerp(heldFluidContainer.transform.position, finalTarget, 15f * Time.deltaTime);
-        heldFluidContainer.transform.rotation = playerCamera.transform.rotation;
+        heldTransform.position = Vector3.Lerp(heldTransform.position, finalTarget, 15f * Time.deltaTime);
+        heldTransform.rotation = playerCamera.transform.rotation;
     }
-
-    #endregion
-
-    #region UI
 
     private void UpdateUI()
     {
@@ -503,10 +457,6 @@ public class PlayerInteraction : MonoBehaviour
         tooltip.HidePrompt();
     }
 
-    #endregion
-
-    #region Scroll ve Pozisyon
-
     private void HandleScrollWheel()
     {
         Vector2 scroll = inputActions.Player.ScrollWheel.ReadValue<Vector2>();
@@ -516,22 +466,6 @@ public class PlayerInteraction : MonoBehaviour
             currentHoldDistance = Mathf.Clamp(currentHoldDistance, holdDistanceMin, holdDistanceMax);
         }
     }
-
-    private void UpdateHeldPartPosition()
-    {
-        if (playerCamera == null) return;
-
-        float headBobOffset = playerCamera.transform.localPosition.y - _cameraDefaultYPosition;
-        Vector3 baseTarget = playerCamera.transform.position + playerCamera.transform.forward * currentHoldDistance;
-        Vector3 finalTarget = baseTarget + (playerCamera.transform.up * headBobOffset);
-
-        heldPart.transform.position = Vector3.Lerp(heldPart.transform.position, finalTarget, 15f * Time.deltaTime);
-        heldPart.transform.rotation = playerCamera.transform.rotation;
-    }
-
-    #endregion
-
-    #region Kapı Sürükleme
 
     private void HandleDoorDrag()
     {
@@ -547,8 +481,6 @@ public class PlayerInteraction : MonoBehaviour
             draggedDoor = null;
         }
     }
-
-    #endregion
 
     private static void SetCollidersEnabled(GameObject obj, bool enabled)
     {

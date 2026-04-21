@@ -22,7 +22,6 @@ public class PlayerCrosshair : MonoBehaviour
 
     private void Update()
     {
-        // Eğer inspector'dan değerler değiştirilirse dokuyu yenile
         if (size != lastSize || outlineThickness != lastOutlineThickness || 
             defaultColor != lastColor || outlineColor != lastOutlineColor)
         {
@@ -53,14 +52,7 @@ public class PlayerCrosshair : MonoBehaviour
             for (int x = 0; x < texSize; x++)
             {
                 float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
-                if (dist <= radius)
-                {
-                    crosshairTexture.SetPixel(x, y, Color.white);
-                }
-                else
-                {
-                    crosshairTexture.SetPixel(x, y, Color.clear);
-                }
+                crosshairTexture.SetPixel(x, y, dist <= radius ? Color.white : Color.clear);
             }
         }
         crosshairTexture.Apply();
