@@ -27,7 +27,7 @@ public class CarIgnition : MonoBehaviour, IInteractable
         {
             if (carController == null) return false;
 
-            PlayerController player = FindAnyObjectByType<PlayerController>();
+            PlayerController player = GameReferences.Instance?.PlayerController;
             if (player == null || !player.IsSitting || player.CurrentSeat == null) return false;
 
             if (driverSeatSlot == null) return true;
@@ -45,8 +45,6 @@ public class CarIgnition : MonoBehaviour, IInteractable
             return false;
         }
     }
-
-    public void Interact() { }
 
     public void ToggleHandsOnWheel()
     {

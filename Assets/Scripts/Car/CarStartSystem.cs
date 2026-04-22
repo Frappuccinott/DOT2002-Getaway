@@ -1,5 +1,5 @@
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -14,8 +14,14 @@ public class CarStartSystem : MonoBehaviour
     [SerializeField] private float minimumOil = 1f;
     [SerializeField] private float minimumCoolant = 1f;
 
+    [Header("Kontrol Sıklığı")]
+    [SerializeField] private float conditionCheckInterval = 0.5f;
+
     private bool isRunning;
     public bool cheatEngineInstalled = false;
+
+    private Dictionary<FluidType, CarFluidTank> tankCache;
+    private float nextConditionCheck;
 
     public bool IsRunning => isRunning;
     public bool HasBattery => cheatEngineInstalled || (assemblyManager != null && assemblyManager.IsPartInstalled(CarPartType.Battery));
@@ -32,25 +38,40 @@ public class CarStartSystem : MonoBehaviour
         {
             fluidTanks = GetComponentsInChildren<CarFluidTank>(true);
         }
+
+        BuildTankCache();
+    }
+
+    private void BuildTankCache()
+    {
+        tankCache = new Dictionary<FluidType, CarFluidTank>();
+        if (fluidTanks == null) return;
+        foreach (var tank in fluidTanks)
+        {
+            if (tank != null && !tankCache.ContainsKey(tank.AcceptedFluidType))
+                tankCache[tank.AcceptedFluidType] = tank;
+        }
     }
 
     public CarFluidTank GetTank(FluidType type)
     {
-        if (fluidTanks == null) return null;
-        return fluidTanks.FirstOrDefault(t => t.AcceptedFluidType == type);
+        if (tankCache != null && tankCache.TryGetValue(type, out var tank))
+            return tank;
+        return null;
     }
 
     private void Update()
     {
-        if (isRunning)
+        if (!isRunning) return;
+        if (Time.time < nextConditionCheck) return;
+        nextConditionCheck = Time.time + conditionCheckInterval;
+
+        CarStartResult result = CheckConditions(false);
+        if (result != CarStartResult.Started)
         {
-            CarStartResult result = CheckConditions(false);
-            if (result != CarStartResult.Started)
-            {
-                isRunning = false;
-                Debug.LogWarning("[CarStart] ENGINE DIED: A critical part was removed or fluid dropped below minimum.");
-                OnEngineStopped?.Invoke();
-            }
+            isRunning = false;
+            Debug.LogWarning("[CarStart] ENGINE DIED: A critical part was removed or fluid dropped below minimum.");
+            OnEngineStopped?.Invoke();
         }
     }
 
@@ -79,17 +100,12 @@ public class CarStartSystem : MonoBehaviour
         CarFluidTank coolantTank = GetTank(FluidType.Coolant);
 
         float currentFuel = fuelTank != null ? fuelTank.CurrentFluid : 0f;
-        float maxFuel = fuelTank != null ? fuelTank.MaxCapacity : 0f;
         float currentOil = oilTank != null ? oilTank.CurrentFluid : 0f;
-        float maxOil = oilTank != null ? oilTank.MaxCapacity : 0f;
         float currentCoolant = coolantTank != null ? coolantTank.CurrentFluid : 0f;
-        float maxCoolant = coolantTank != null ? coolantTank.MaxCapacity : 0f;
 
         bool hasEnoughFuel = currentFuel >= minimumFuel;
         bool hasEnoughOil = currentOil >= minimumOil;
         bool hasEnoughCoolant = currentCoolant >= minimumCoolant;
-
-        // Test logs removed for cleaner console.
 
         if (!HasBattery)
         {

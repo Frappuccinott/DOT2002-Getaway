@@ -6,6 +6,7 @@ public class PlayerInteraction : MonoBehaviour
     [Header("Raycast")]
     [SerializeField] private float interactionRange = 3f;
     [SerializeField] private LayerMask interactionLayer = ~0;
+    [SerializeField] private LayerMask exitObstacleLayer = ~0;
 
     [Header("Elde Tutma")]
     [SerializeField] private float holdDistanceMin = 0.5f;
@@ -35,6 +36,8 @@ public class PlayerInteraction : MonoBehaviour
     [SerializeField] private PlayerController playerController;
 
     private PlayerInputActions inputActions;
+    private Transform cachedSeatTransform;
+    private Rigidbody cachedSeatRb;
 
     private IInteractable currentInteractable;
     private HingeDoor currentDoor;
@@ -68,7 +71,6 @@ public class PlayerInteraction : MonoBehaviour
 
     private void Awake()
     {
-        inputActions = new PlayerInputActions();
         currentHoldDistance = holdDistanceDefault;
 
         if (playerCamera == null)
@@ -87,17 +89,19 @@ public class PlayerInteraction : MonoBehaviour
 
     private void OnEnable()
     {
+        inputActions = PlayerInputProvider.Actions;
+        if (inputActions == null) return;
         inputActions.Player.Enable();
         inputActions.Player.Pickup.performed += OnPickupPressed;
     }
 
     private void OnDisable()
     {
+        if (inputActions == null) return;
         inputActions.Player.Pickup.performed -= OnPickupPressed;
-        inputActions.Player.Disable();
     }
 
-    private void OnDestroy() => inputActions?.Dispose();
+
 
     private void Update()
     {
@@ -163,14 +167,19 @@ public class PlayerInteraction : MonoBehaviour
             }
         }
 
-        if (playerController.IsSitting && playerController.CurrentSeat != null)
+        if (playerController != null && playerController.IsSitting && playerController.CurrentSeat != null)
         {
-            Rigidbody seatRb = playerController.CurrentSeat.GetComponentInParent<Rigidbody>();
+            if (cachedSeatTransform != playerController.CurrentSeat)
+            {
+                cachedSeatTransform = playerController.CurrentSeat;
+                cachedSeatRb = cachedSeatTransform.GetComponentInParent<Rigidbody>();
+            }
+
             Rigidbody hitRb = hit.collider.attachedRigidbody;
 
             if (currentIgnition == null)
             {
-                if ((seatRb != null && hitRb == seatRb) ||
+                if ((cachedSeatRb != null && hitRb == cachedSeatRb) ||
                     hit.collider.transform.root == playerController.CurrentSeat.root ||
                     lastHitCarSys != null)
                 {
@@ -276,9 +285,8 @@ public class PlayerInteraction : MonoBehaviour
 
         Vector3 headPos = playerCamera.transform.position;
         Vector3 exitPos = playerController.StandPosition;
-        LayerMask obstacleLayer = ~0;
 
-        if (Physics.Linecast(headPos, exitPos, obstacleLayer))
+        if (Physics.Linecast(headPos, exitPos, exitObstacleLayer))
         {
             return false;
         }
@@ -296,7 +304,7 @@ public class PlayerInteraction : MonoBehaviour
         originalScale = obj.transform.localScale;
         obj.transform.SetParent(playerCamera.transform);
         obj.transform.localScale = originalScale * heldPartScale;
-        SetCollidersEnabled(obj, false);
+        PhysicsUtils.SetCollidersEnabled(obj, false);
         currentHoldDistance = holdDistanceDefault;
     }
 
@@ -304,7 +312,7 @@ public class PlayerInteraction : MonoBehaviour
     {
         obj.transform.SetParent(null);
         obj.transform.localScale = originalScale;
-        SetCollidersEnabled(obj, true);
+        PhysicsUtils.SetCollidersEnabled(obj, true);
         obj.SetActive(true);
 
         Rigidbody rb = obj.GetComponent<Rigidbody>();
@@ -411,7 +419,7 @@ public class PlayerInteraction : MonoBehaviour
 
     private void UpdateInteractionPrompt(InteractionTooltipUI tooltip)
     {
-        if (playerController.IsSitting)
+        if (playerController != null && playerController.IsSitting)
         {
             if (currentIgnition != null) { tooltip.ShowPrompt(currentIgnition.InteractionPrompt); return; }
             if (currentDoor != null && currentDoor.Type == HingeDoor.DoorType.FuelCap) { tooltip.ShowPrompt(openCloseFuelCapPrompt); return; }
@@ -480,11 +488,5 @@ public class PlayerInteraction : MonoBehaviour
         {
             draggedDoor = null;
         }
-    }
-
-    private static void SetCollidersEnabled(GameObject obj, bool enabled)
-    {
-        foreach (Collider col in obj.GetComponentsInChildren<Collider>())
-            col.enabled = enabled;
     }
 }

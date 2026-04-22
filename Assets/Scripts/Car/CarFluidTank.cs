@@ -24,7 +24,7 @@ public class CarFluidTank : MonoBehaviour, IInteractable
         get
         {
             if (cachedPlayer == null)
-                cachedPlayer = FindFirstObjectByType<PlayerInteraction>();
+                cachedPlayer = GameReferences.Instance?.PlayerInteraction;
             if (cachedPlayer == null) return false;
             return cachedPlayer.HasFluidContainer
                 && cachedPlayer.HeldFluidType == acceptedFluidType
@@ -32,7 +32,6 @@ public class CarFluidTank : MonoBehaviour, IInteractable
         }
     }
 
-    public void Interact() { }
 
     public float AddFluid(float amount)
     {

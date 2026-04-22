@@ -172,18 +172,32 @@ public class CarAudioSystem : MonoBehaviour
 
         if (windLoopClip != null)
         {
-            if (!windSource.isPlaying && speed > windStartSpeed) { windSource.clip = windLoopClip; windSource.Play(); }
-            float windNorm = Mathf.Clamp01((speed - windStartSpeed) / (windFullSpeed - windStartSpeed));
-            windSource.volume = Mathf.Lerp(0f, windMaxVolume, windNorm);
+            if (speed > windStartSpeed)
+            {
+                if (!windSource.isPlaying) { windSource.clip = windLoopClip; windSource.Play(); }
+                float windNorm = Mathf.Clamp01((speed - windStartSpeed) / (windFullSpeed - windStartSpeed));
+                windSource.volume = Mathf.Lerp(0f, windMaxVolume, windNorm);
+            }
+            else if (windSource.isPlaying)
+            {
+                windSource.Stop();
+            }
         }
 
         if (tireLoopClip != null)
         {
             bool isRunning = carStartSystem != null && carStartSystem.IsRunning;
-            if (!tireSource.isPlaying && speed > tireStartSpeed && isRunning) { tireSource.clip = tireLoopClip; tireSource.Play(); }
-            float tireNorm = Mathf.Clamp01((speed - tireStartSpeed) / 100f);
-            tireSource.volume = speed > tireStartSpeed ? Mathf.Lerp(0f, tireMaxVolume, tireNorm) : 0f;
-            tireSource.pitch = Mathf.Lerp(tireMinPitch, tireMaxPitch, tireNorm);
+            if (speed > tireStartSpeed && isRunning)
+            {
+                if (!tireSource.isPlaying) { tireSource.clip = tireLoopClip; tireSource.Play(); }
+                float tireNorm = Mathf.Clamp01((speed - tireStartSpeed) / 100f);
+                tireSource.volume = Mathf.Lerp(0f, tireMaxVolume, tireNorm);
+                tireSource.pitch = Mathf.Lerp(tireMinPitch, tireMaxPitch, tireNorm);
+            }
+            else if (tireSource.isPlaying)
+            {
+                tireSource.Stop();
+            }
         }
     }
 
@@ -285,28 +299,6 @@ public class CarAudioSystem : MonoBehaviour
 
     private void SetupInputAction()
     {
-        PlayerInput playerInput = FindAnyObjectByType<PlayerInput>();
-        if (playerInput != null && playerInput.actions != null)
-        {
-            InputActionMap drivingMap = playerInput.actions.FindActionMap("Driving");
-            if (drivingMap != null)
-            {
-                hornAction = drivingMap.FindAction("horn");
-            }
-        }
-
-        if (hornAction == null)
-        {
-            InputActionAsset[] allAssets = Resources.FindObjectsOfTypeAll<InputActionAsset>();
-            foreach (var asset in allAssets)
-            {
-                InputActionMap drivingMap = asset.FindActionMap("Driving");
-                if (drivingMap != null)
-                {
-                    hornAction = drivingMap.FindAction("horn");
-                    if (hornAction != null) break;
-                }
-            }
-        }
+        hornAction = InputHelper.FindDrivingAction("horn");
     }
 }

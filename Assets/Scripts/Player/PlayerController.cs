@@ -28,6 +28,9 @@ public class PlayerController : MonoBehaviour
 
     private CharacterController controller;
     private PlayerInputActions inputActions;
+    private Collider[] allColliders;
+    private Rigidbody rb;
+    private PlayerLook playerLook;
 
     private Vector3 velocity;
     private Vector2 currentMoveInput;
@@ -51,7 +54,7 @@ public class PlayerController : MonoBehaviour
     public bool IsCrouching => isCrouching;
     public bool IsSitting => isSitting;
     public Transform CurrentSeat => currentSeat;
-    public Vector3 StandPosition => standPosition;
+    public Vector3 StandPosition => currentSeat != null ? currentSeat.TransformPoint(localStandOffset) : standPosition;
     public bool IsMoving => currentMoveInput.sqrMagnitude > 0.01f && !isSitting;
 
     public float CrouchRatio
@@ -84,7 +87,10 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
-        inputActions = new PlayerInputActions();
+        allColliders = GetComponents<Collider>();
+        rb = GetComponent<Rigidbody>();
+        playerLook = GetComponent<PlayerLook>();
+
         defaultCenter = controller.center;
         defaultHeight = controller.height;
         standHeight = defaultHeight;
@@ -93,6 +99,8 @@ public class PlayerController : MonoBehaviour
 
     private void OnEnable()
     {
+        inputActions = PlayerInputProvider.Actions;
+        if (inputActions == null) return;
         inputActions.Player.Enable();
 
         inputActions.Player.Jump.performed += OnJump;
@@ -104,19 +112,14 @@ public class PlayerController : MonoBehaviour
 
     private void OnDisable()
     {
+        if (inputActions == null) return;
         inputActions.Player.Jump.performed -= OnJump;
         inputActions.Player.Sprint.started -= OnSprintStarted;
         inputActions.Player.Sprint.canceled -= OnSprintCanceled;
         inputActions.Player.Crouch.started -= OnCrouchStarted;
         inputActions.Player.Crouch.canceled -= OnCrouchCanceled;
-
-        inputActions.Player.Disable();
     }
 
-    private void OnDestroy()
-    {
-        inputActions?.Dispose();
-    }
 
     private void Update()
     {
@@ -161,15 +164,13 @@ public class PlayerController : MonoBehaviour
 
         controller.enabled = false;
 
-        Collider[] colliders = GetComponents<Collider>();
-        foreach (var col in colliders) col.enabled = false;
+        foreach (var col in allColliders) col.enabled = false;
 
-        Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null) rb.isKinematic = true;
 
         transform.SetParent(seatPoint);
 
-        GetComponent<PlayerLook>()?.SnapToSeatLook(seatPoint);
+        if (playerLook != null) playerLook.SnapToSeatLook(seatPoint);
     }
 
     public void StandUp()
@@ -185,7 +186,7 @@ public class PlayerController : MonoBehaviour
         
         transform.SetParent(null);
         
-        GetComponent<PlayerLook>()?.StopSnapping();
+        if (playerLook != null) playerLook.StopSnapping();
     }
 
     private void HandleStandUpLerp()
@@ -202,12 +203,10 @@ public class PlayerController : MonoBehaviour
         {
             isStandingUp = false;
             
-            Collider[] colliders = GetComponents<Collider>();
-            foreach (var col in colliders) col.enabled = true;
-
-            Rigidbody rb = GetComponent<Rigidbody>();
+            foreach (var col in allColliders) col.enabled = true;
+            
             if (rb != null) rb.isKinematic = false;
-
+            
             controller.enabled = true;
         }
     }
@@ -284,5 +283,15 @@ public class PlayerController : MonoBehaviour
     {
         isCrouching = false;
         targetHeight = standHeight;
+    }
+
+    private void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        HingeDoor door = hit.collider.GetComponentInParent<HingeDoor>();
+        if (door != null)
+        {
+            // Kapı hareket halindeyken oyuncuya çarparsa hareketi durdurarak takla atılmasını önle
+            door.StopDoor();
+        }
     }
 }

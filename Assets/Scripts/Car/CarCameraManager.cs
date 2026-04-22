@@ -1,47 +1,36 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Unity.Cinemachine; // Cinemachine 3.x versiyonu için (Görselinizden v3 kullandığınızı anlıyorum)
+using Unity.Cinemachine;
 
 public class CarCameraManager : MonoBehaviour
 {
-    [Header("Gereksinim: 3 Farklı Cinemachine Kamerası")]
+    [Header("Cinemachine Kameraları")]
     public CinemachineCamera firstPersonCam;
     public CinemachineCamera thirdPersonCam;
     public CinemachineCamera hoodCam;
+
+    [Header("Müthiş Hız Hissiyatı (Speed FOV)")]
+    public float maxExtraFOV = 20f;
+    public float speedForMaxFOV = 120f;
+    [SerializeField] private float fovLerpSpeed = 5f;
+    [SerializeField] private float fpsFovScale = 0.5f;
+    [SerializeField] private float hoodFovScale = 0.8f;
 
     private CarController carController;
     private int currentCamIndex = 0;
     private bool wasDriving = false;
     private InputAction cameraAction;
 
+    private CinemachineCamera[] cameras;
+    private float[] baseFOVs;
+    private float[] fovScales;
+
     private void Awake()
     {
         carController = GetComponentInParent<CarController>();
         if (carController == null) carController = GetComponentInChildren<CarController>();
 
-        PlayerInput playerInput = FindAnyObjectByType<PlayerInput>();
-        if (playerInput != null && playerInput.actions != null)
-        {
-            InputActionMap drivingMap = playerInput.actions.FindActionMap("Driving");
-            if (drivingMap != null)
-            {
-                cameraAction = drivingMap.FindAction("Camera", true);
-            }
-        }
-
-        if (cameraAction == null)
-        {
-            InputActionAsset[] allAssets = Resources.FindObjectsOfTypeAll<InputActionAsset>();
-            foreach (var asset in allAssets)
-            {
-                InputActionMap drivingMap = asset.FindActionMap("Driving");
-                if (drivingMap != null)
-                {
-                    cameraAction = drivingMap.FindAction("Camera", true);
-                    if (cameraAction != null) break;
-                }
-            }
-        }
+        cameraAction = InputHelper.FindDrivingAction("Camera", true);
     }
 
     private void OnEnable()
@@ -54,16 +43,17 @@ public class CarCameraManager : MonoBehaviour
         if (cameraAction != null) cameraAction.Disable();
     }
 
-    [Header("Müthiş Hız Hissiyatı (Speed FOV)")]
-    public float maxExtraFOV = 20f;
-    public float speedForMaxFOV = 120f;
-    private float[] baseFOVs = new float[3];
-
     private void Start()
     {
-        if (firstPersonCam) baseFOVs[0] = firstPersonCam.Lens.FieldOfView;
-        if (thirdPersonCam) baseFOVs[1] = thirdPersonCam.Lens.FieldOfView;
-        if (hoodCam) baseFOVs[2] = hoodCam.Lens.FieldOfView;
+        cameras = new[] { firstPersonCam, thirdPersonCam, hoodCam };
+        baseFOVs = new float[cameras.Length];
+        fovScales = new[] { fpsFovScale, 1f, hoodFovScale };
+
+        for (int i = 0; i < cameras.Length; i++)
+        {
+            if (cameras[i] != null)
+                baseFOVs[i] = cameras[i].Lens.FieldOfView;
+        }
     }
 
     private void Update()
@@ -74,7 +64,6 @@ public class CarCameraManager : MonoBehaviour
         {
             if (!wasDriving)
             {
-                // Arabaya yeni bindiysek ilk kameraya (FPS) resetleyelim
                 currentCamIndex = 0;
                 UpdateTargetCamera();
             }
@@ -84,7 +73,7 @@ public class CarCameraManager : MonoBehaviour
             if (pressed)
             {
                 currentCamIndex++;
-                if (currentCamIndex > 2) currentCamIndex = 0;
+                if (currentCamIndex >= cameras.Length) currentCamIndex = 0;
                 UpdateTargetCamera();
             }
 
@@ -92,7 +81,6 @@ public class CarCameraManager : MonoBehaviour
         }
         else if (wasDriving)
         {
-            // Arabadan indiğimizde otomatik FPS kameramıza dönelim ve FOV sıfırlansın
             currentCamIndex = 0;
             UpdateTargetCamera();
             ResetAllFOVs();
@@ -103,44 +91,37 @@ public class CarCameraManager : MonoBehaviour
 
     private void UpdateTargetCamera()
     {
-        // Öncelik yerine direkt objeleri açıp kapatarak çalışmayı %100 garanti altına alıyoruz.
-        if (firstPersonCam) firstPersonCam.gameObject.SetActive(currentCamIndex == 0);
-        if (thirdPersonCam) thirdPersonCam.gameObject.SetActive(currentCamIndex == 1);
-        if (hoodCam) hoodCam.gameObject.SetActive(currentCamIndex == 2);
+        for (int i = 0; i < cameras.Length; i++)
+        {
+            if (cameras[i] != null)
+                cameras[i].gameObject.SetActive(i == currentCamIndex);
+        }
     }
 
     private void ApplyAdaptiveFOV()
     {
         if (carController == null) return;
-        
-        float currentSpeed = carController.DisplaySpeed;
-        float speedRatio = Mathf.Clamp01(currentSpeed / speedForMaxFOV);
-        float extraFov = speedRatio * maxExtraFOV;
+        if (currentCamIndex < 0 || currentCamIndex >= cameras.Length) return;
 
-        if (currentCamIndex == 0 && firstPersonCam != null)
-        {
-            var lens = firstPersonCam.Lens;
-            lens.FieldOfView = Mathf.Lerp(lens.FieldOfView, baseFOVs[0] + extraFov * 0.5f, Time.deltaTime * 5f);
-            firstPersonCam.Lens = lens;
-        }
-        else if (currentCamIndex == 1 && thirdPersonCam != null)
-        {
-            var lens = thirdPersonCam.Lens;
-            lens.FieldOfView = Mathf.Lerp(lens.FieldOfView, baseFOVs[1] + extraFov, Time.deltaTime * 5f);
-            thirdPersonCam.Lens = lens;
-        }
-        else if (currentCamIndex == 2 && hoodCam != null)
-        {
-            var lens = hoodCam.Lens;
-            lens.FieldOfView = Mathf.Lerp(lens.FieldOfView, baseFOVs[2] + extraFov * 0.8f, Time.deltaTime * 5f);
-            hoodCam.Lens = lens;
-        }
+        CinemachineCamera cam = cameras[currentCamIndex];
+        if (cam == null) return;
+
+        float speedRatio = Mathf.Clamp01(carController.DisplaySpeed / speedForMaxFOV);
+        float extraFov = speedRatio * maxExtraFOV * fovScales[currentCamIndex];
+
+        var lens = cam.Lens;
+        lens.FieldOfView = Mathf.Lerp(lens.FieldOfView, baseFOVs[currentCamIndex] + extraFov, Time.deltaTime * fovLerpSpeed);
+        cam.Lens = lens;
     }
 
     private void ResetAllFOVs()
     {
-        if (firstPersonCam) { var l = firstPersonCam.Lens; l.FieldOfView = baseFOVs[0]; firstPersonCam.Lens = l; }
-        if (thirdPersonCam) { var l = thirdPersonCam.Lens; l.FieldOfView = baseFOVs[1]; thirdPersonCam.Lens = l; }
-        if (hoodCam) { var l = hoodCam.Lens; l.FieldOfView = baseFOVs[2]; hoodCam.Lens = l; }
+        for (int i = 0; i < cameras.Length; i++)
+        {
+            if (cameras[i] == null) continue;
+            var lens = cameras[i].Lens;
+            lens.FieldOfView = baseFOVs[i];
+            cameras[i].Lens = lens;
+        }
     }
 }

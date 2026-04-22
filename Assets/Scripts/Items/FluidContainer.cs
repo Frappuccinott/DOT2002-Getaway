@@ -28,13 +28,11 @@ public class FluidContainer : MonoBehaviour, IInteractable
         get
         {
             if (cachedPlayer == null)
-                cachedPlayer = FindFirstObjectByType<PlayerInteraction>();
+                cachedPlayer = GameReferences.Instance?.PlayerInteraction;
             if (cachedPlayer == null) return true;
             return !cachedPlayer.HasCarPart && !cachedPlayer.HasFluidContainer;
         }
     }
-
-    public void Interact() { }
 
     protected virtual void Start()
     {

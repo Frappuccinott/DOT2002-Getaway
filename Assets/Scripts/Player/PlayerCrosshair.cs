@@ -40,6 +40,7 @@ public class PlayerCrosshair : MonoBehaviour
 
     private void CreateCircleTexture()
     {
+        if (crosshairTexture != null) Destroy(crosshairTexture);
         int texSize = 32;
         crosshairTexture = new Texture2D(texSize, texSize, TextureFormat.ARGB32, false);
         crosshairTexture.filterMode = FilterMode.Point;

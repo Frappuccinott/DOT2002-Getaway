@@ -19,10 +19,9 @@ public class PickupableCarPart : MonoBehaviour, IInteractable
         get
         {
             if (cachedPlayer == null)
-                cachedPlayer = FindFirstObjectByType<PlayerInteraction>();
+                cachedPlayer = GameReferences.Instance?.PlayerInteraction;
             return cachedPlayer == null || (!cachedPlayer.HasCarPart && !cachedPlayer.HasFluidContainer);
         }
     }
 
-    public void Interact() { }
 }

@@ -33,7 +33,7 @@ public class CarPartSlot : MonoBehaviour, IInteractable
         get
         {
             if (cachedPlayer == null)
-                cachedPlayer = FindFirstObjectByType<PlayerInteraction>();
+                cachedPlayer = GameReferences.Instance?.PlayerInteraction;
             if (cachedPlayer == null) return false;
             return isInstalled
                 ? !cachedPlayer.HasCarPart
@@ -41,7 +41,6 @@ public class CarPartSlot : MonoBehaviour, IInteractable
         }
     }
 
-    public void Interact() { }
 
     public void Install(PickupableCarPart part)
     {
@@ -67,7 +66,7 @@ public class CarPartSlot : MonoBehaviour, IInteractable
             Rigidbody rb = obj.GetComponent<Rigidbody>();
             if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
 
-            SetCollidersEnabled(obj, false);
+            PhysicsUtils.SetCollidersEnabled(obj, false);
         }
 
         GetComponentInParent<CarAssemblyManager>()?.OnPartInstalled(acceptedPartType);
@@ -86,7 +85,7 @@ public class CarPartSlot : MonoBehaviour, IInteractable
             GameObject obj = part.gameObject;
             obj.transform.SetParent(null);
             obj.SetActive(true);
-            SetCollidersEnabled(obj, true);
+            PhysicsUtils.SetCollidersEnabled(obj, true);
         }
 
         GetComponentInParent<CarAssemblyManager>()?.OnPartRemoved(acceptedPartType);
@@ -178,11 +177,5 @@ public class CarPartSlot : MonoBehaviour, IInteractable
     private void OnDestroy()
     {
         if (previewMaterial != null) Destroy(previewMaterial);
-    }
-
-    private static void SetCollidersEnabled(GameObject obj, bool enabled)
-    {
-        foreach (Collider col in obj.GetComponentsInChildren<Collider>())
-            col.enabled = enabled;
     }
 }

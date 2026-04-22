@@ -28,7 +28,6 @@ public class PlayerLook : MonoBehaviour
     private void Awake()
     {
         playerController = GetComponent<PlayerController>();
-        inputActions = new PlayerInputActions();
 
         if (cameraTransform == null)
         {
@@ -61,6 +60,8 @@ public class PlayerLook : MonoBehaviour
 
     private void OnEnable()
     {
+        inputActions = PlayerInputProvider.Actions;
+        if (inputActions == null) return;
         inputActions.Player.Enable();
 
         inputActions.Player.Zoom.started += OnZoomStarted;
@@ -72,19 +73,15 @@ public class PlayerLook : MonoBehaviour
 
     private void OnDisable()
     {
+        if (inputActions == null) return;
         inputActions.Player.Zoom.started -= OnZoomStarted;
         inputActions.Player.Zoom.canceled -= OnZoomCanceled;
-
-        inputActions.Player.Disable();
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
 
-    private void OnDestroy()
-    {
-        inputActions?.Dispose();
-    }
+
 
     private void LateUpdate()
     {
@@ -135,13 +132,11 @@ public class PlayerLook : MonoBehaviour
     {
         isSnappingToSeat = false;
 
-        // Arabadan inince kameranın Y sapmasını sıfırla
         if (cameraTransform != null)
         {
             cameraTransform.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);
         }
     }
-
     private void HandleLook()
     {
         if (cameraTransform == null) return;

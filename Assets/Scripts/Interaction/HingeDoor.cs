@@ -39,7 +39,7 @@ public class HingeDoor : MonoBehaviour
         }
     }
 
-    private void Awake()
+    private void Start()
     {
         if (hingePoint != null)
         {
@@ -80,5 +80,19 @@ public class HingeDoor : MonoBehaviour
         float distToMax = Mathf.Abs(currentAngle - maxAngle);
 
         targetAngle = (distToMin < distToMax) ? maxAngle : minAngle;
+    }
+
+    public void StopDoor()
+    {
+        // Karakter içeri sıkıştığı an fiziğin patlamaması için kapıyı anında biraz geri atıyoruz.
+        float pushBack = (targetAngle > currentAngle) ? -5f : 5f;
+        
+        currentAngle += pushBack;
+        targetAngle = currentAngle;
+        
+        currentAngle = Mathf.Clamp(currentAngle, minAngle, maxAngle);
+        targetAngle = Mathf.Clamp(targetAngle, minAngle, maxAngle);
+        
+        rotationTarget.localRotation = initialRotation * Quaternion.AngleAxis(currentAngle, rotationAxis);
     }
 }
