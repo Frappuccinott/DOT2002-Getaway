@@ -14,9 +14,14 @@ public enum CarPartType
     RearBumper,
     Hood,
     FuelTank,
-    WheelFrontLeft,
-    WheelFrontRight,
-    WheelRearLeft,
-    WheelRearRight,
-    Radiator
+    Wheel,
+    Radiator,
+    FrontLightLeft,
+    FrontLightRight,
+    RearLightLeft,
+    RearLightRight,
+    RearIron,
+    FrontIron,
+    FrontGrill,
+    FrontBumper
 }

@@ -26,10 +26,13 @@ public class PlayerInteraction : MonoBehaviour
     [SerializeField] private string takeCarPartPrompt = "Press [F] to grab";
     [SerializeField] private string dropPrompt = "Press [F] to drop";
     [SerializeField] private string installPartPrompt = "Press [F] to install";
-    [SerializeField] private string removePartPrompt = "Press [F] to remove";
+    [SerializeField] private string removePartPrompt = "Hold [F] to remove";
     [SerializeField] private string fillTankPrompt = "Hold [E] to fill";
     [SerializeField] private string openCloseFuelCapPrompt = "Press [E] to open/close";
     [SerializeField] private string dragDoorPrompt = "Hold [LMB] to drag";
+
+    [Header("Sökme Ayarları")]
+    [SerializeField] private float removeHoldDuration = 1f;
 
     [Header("Referanslar")]
     [SerializeField] private Camera playerCamera;
@@ -59,6 +62,11 @@ public class PlayerInteraction : MonoBehaviour
     private HingeDoor draggedDoor;
     private bool isTransferring;
     private bool interactPressedLastFrame;
+
+    // Sökme (hold F) için timer
+    private float removeHoldTimer;
+    private bool isHoldingForRemove;
+    private CarPartSlot removeTargetSlot;
 
     private static readonly Vector3 VIEWPORT_CENTER = new Vector3(0.5f, 0.5f, 0f);
     private Collider lastHitCollider;
@@ -118,6 +126,7 @@ public class PlayerInteraction : MonoBehaviour
             UpdateHeldObjectPosition(heldFluidContainer.transform);
         }
 
+        HandleRemoveHold();
         HandleDoorDrag();
         HandleInteractKey();
         UpdateUI();
@@ -129,7 +138,7 @@ public class PlayerInteraction : MonoBehaviour
 
         Ray ray = playerCamera.ViewportPointToRay(VIEWPORT_CENTER);
 
-        if (!Physics.Raycast(ray, out RaycastHit hit, interactionRange, interactionLayer))
+        if (!Physics.Raycast(ray, out RaycastHit hit, interactionRange, interactionLayer, QueryTriggerInteraction.Collide))
         {
             ClearSlotPreview();
             lastHitCollider = null;
@@ -149,8 +158,53 @@ public class PlayerInteraction : MonoBehaviour
         {
             lastHitCollider = hit.collider;
             
-            currentInteractable = hit.collider.GetComponentInParent<IInteractable>();
-            currentSeat = hit.collider.GetComponentInParent<CarSeat>();
+            // GetComponentInParent<IInteractable>() disabled bileşenleri de bulur.
+            // Disabled CarSeat gibi bileşenlerin yanlışlıkla seçilmesini önlemek için
+            // tüm IInteractable'ları alıp ilk aktif olanı seçiyoruz.
+            currentInteractable = null;
+            var interactables = hit.collider.GetComponentsInParent<IInteractable>();
+            foreach (var ia in interactables)
+            {
+                if (ia is MonoBehaviour mb && !mb.enabled) continue;
+                currentInteractable = ia;
+                break;
+            }
+
+            // CarSeat algıla, AMA:
+            // 1) Disabled CarSeat'leri yoksay
+            // 2) Üzerinde AKTİF bir PickupableCarPart olan objelerde oturmayı yoksay
+            CarSeat seat = hit.collider.GetComponentInParent<CarSeat>();
+            
+            // EĞER seat doğrudan bulunamadıysa (örneğin raycast Chassis/Gövde'ye çarptıysa)
+            // ama çarptığımız obje bir araba ise, arabanın içindeki en yakın koltuğu bul.
+            // Bu, hiyerarşi değiştiği için gövdeye bakarak koltuğa oturulamaması sorununu çözer!
+            if (seat == null)
+            {
+                Transform root = hit.collider.transform.root;
+                if (root.GetComponentInChildren<CarController>() != null || root.GetComponentInChildren<CarStartSystem>() != null)
+                {
+                    CarSeat[] allSeats = root.GetComponentsInChildren<CarSeat>();
+                    float closestDist = float.MaxValue;
+                    foreach (var s in allSeats)
+                    {
+                        if (!s.enabled || (s.TryGetComponent<PickupableCarPart>(out var p) && p.enabled)) continue;
+                        
+                        float dist = Vector3.Distance(hit.point, s.transform.position);
+                        if (dist < closestDist && dist < 2f) // 2 metreden yakınsa kabul et
+                        {
+                            closestDist = dist;
+                            seat = s;
+                        }
+                    }
+                }
+            }
+
+            bool hasActivePickupable = seat != null && seat.TryGetComponent<PickupableCarPart>(out var pcp) && pcp.enabled;
+
+            if (seat != null && seat.enabled && !hasActivePickupable)
+                currentSeat = seat;
+            else
+                currentSeat = null;
 
             HingeDoor door = hit.collider.GetComponentInParent<HingeDoor>();
             currentDoor = (door != null && door.CanOperate) ? door : null;
@@ -179,12 +233,9 @@ public class PlayerInteraction : MonoBehaviour
 
             if (currentIgnition == null)
             {
-                if ((cachedSeatRb != null && hitRb == cachedSeatRb) ||
-                    hit.collider.transform.root == playerController.CurrentSeat.root ||
-                    lastHitCarSys != null)
-                {
-                    isLookingAtCarInterior = true;
-                }
+                // Artık arabanın içine bakmak inme işlemini (E tuşunu) engellemeyecek.
+                // Oyuncu istediği zaman (direksiyona bakmadığı sürece) E'ye basıp inebilecek.
+                isLookingAtCarInterior = false; 
             }
         }
 
@@ -212,10 +263,16 @@ public class PlayerInteraction : MonoBehaviour
         {
             if (currentInteractable is FluidContainer fc) { GrabFluidContainer(fc); return; }
             if (currentInteractable is PickupableCarPart pp) { GrabPart(pp); return; }
-            if (currentInteractable is CarPartSlot slot && slot.IsInstalled)
+            // Takılı parçayı sökmek için F'ye basılı tutma başlat
+            // (anında sökme yerine 1 saniye basılı tutma gerekir)
+            if (currentInteractable is CarPartSlot slot && slot.IsInstalled && !isHoldingForRemove)
             {
-                PickupableCarPart removed = slot.Uninstall();
-                if (removed != null) GrabPart(removed);
+                // Üzerinde alt parça (far vb.) takılıysa sökmeye izin verme!
+                if (slot.HasInstalledChildSlots()) return;
+
+                isHoldingForRemove = true;
+                removeHoldTimer = 0f;
+                removeTargetSlot = slot;
                 return;
             }
         }
@@ -226,6 +283,49 @@ public class PlayerInteraction : MonoBehaviour
             { InstallPart(ts); return; }
 
             DropPart();
+        }
+    }
+
+    /// <summary>
+    /// F tuşuna basılı tutarak parça sökme işlemini yönetir.
+    /// removeHoldDuration süresi dolunca parça sökülür.
+    /// </summary>
+    private void HandleRemoveHold()
+    {
+        if (!isHoldingForRemove) return;
+
+        // F tuşu hâlâ basılı mı kontrol et
+        bool isFHeld = inputActions.Player.Pickup.ReadValue<float>() > 0.5f;
+
+        if (!isFHeld || removeTargetSlot == null || !removeTargetSlot.IsInstalled)
+        {
+            // F bırakıldı veya slot artık geçerli değil → iptal
+            isHoldingForRemove = false;
+            removeHoldTimer = 0f;
+            removeTargetSlot = null;
+            return;
+        }
+
+        // Bakış değiştiyse iptal
+        if (!(currentInteractable is CarPartSlot lookSlot) || lookSlot != removeTargetSlot)
+        {
+            isHoldingForRemove = false;
+            removeHoldTimer = 0f;
+            removeTargetSlot = null;
+            return;
+        }
+
+        removeHoldTimer += Time.deltaTime;
+
+        if (removeHoldTimer >= removeHoldDuration)
+        {
+            // Süre doldu, parçayı sök
+            PickupableCarPart removed = removeTargetSlot.Uninstall();
+            if (removed != null) GrabPart(removed);
+
+            isHoldingForRemove = false;
+            removeHoldTimer = 0f;
+            removeTargetSlot = null;
         }
     }
 
@@ -283,12 +383,26 @@ public class PlayerInteraction : MonoBehaviour
     {
         if (playerCamera == null || playerController == null) return false;
 
+        // Işını yerden biraz yukarıdan gönder ki yerdeki (zemin) colliderlara takılmasın
         Vector3 headPos = playerCamera.transform.position;
-        Vector3 exitPos = playerController.StandPosition;
+        Vector3 exitPos = playerController.StandPosition + Vector3.up * 0.5f;
 
-        if (Physics.Linecast(headPos, exitPos, exitObstacleLayer))
+        // Araba gövdesini (kendi aracımızı) yoksaymak için Linecast yerine RaycastAll kullanıyoruz.
+        Vector3 dir = exitPos - headPos;
+        float dist = dir.magnitude;
+        if (dist > 0.01f)
         {
-            return false;
+            RaycastHit[] hits = Physics.RaycastAll(headPos, dir.normalized, dist, exitObstacleLayer);
+            Transform currentCarRoot = playerController.CurrentSeat != null ? playerController.CurrentSeat.root : null;
+
+            foreach (var hit in hits)
+            {
+                // Eğer çarptığımız şey kendi arabamız değilse ve tetikleyici değilse, çıkış engellenmiştir
+                if (!hit.collider.isTrigger && (currentCarRoot == null || hit.collider.transform.root != currentCarRoot))
+                {
+                    return false;
+                }
+            }
         }
 
         return true;
@@ -456,7 +570,26 @@ public class PlayerInteraction : MonoBehaviour
 
         if (currentInteractable is FluidContainer) { tooltip.ShowPrompt(takeFluidContainerPrompt); return; }
         if (currentInteractable is PickupableCarPart) { tooltip.ShowPrompt(takeCarPartPrompt); return; }
-        if (currentInteractable is CarPartSlot s && s.IsInstalled) { tooltip.ShowPrompt(removePartPrompt); return; }
+        if (currentInteractable is CarPartSlot s && s.IsInstalled)
+        {
+            if (s.HasInstalledChildSlots())
+            {
+                tooltip.ShowPrompt("Remove attached parts first!");
+                return;
+            }
+
+            // Sökme sırasında ilerleme göster
+            if (isHoldingForRemove && removeTargetSlot == s)
+            {
+                float progress = Mathf.Clamp01(removeHoldTimer / removeHoldDuration) * 100f;
+                tooltip.ShowPrompt($"Removing... {progress:F0}%");
+            }
+            else
+            {
+                tooltip.ShowPrompt(removePartPrompt);
+            }
+            return;
+        }
         if (currentSeat != null && !HasCarPart && !HasFluidContainer) { tooltip.ShowPrompt(currentSeat.InteractionPrompt); return; }
         if (currentIgnition != null) { tooltip.ShowPrompt(currentIgnition.InteractionPrompt); return; }
         if (currentDoor != null && currentDoor.Type == HingeDoor.DoorType.FuelCap) { tooltip.ShowPrompt(openCloseFuelCapPrompt); return; }

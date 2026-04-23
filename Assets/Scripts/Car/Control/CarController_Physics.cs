@@ -21,54 +21,54 @@ public partial class CarController
         else
             currentSteerAngle = Mathf.Lerp(currentSteerAngle, targetSteerAngle, Time.fixedDeltaTime * steeringSmoothness);
         
-        frontLeftWC.steerAngle = currentSteerAngle;
-        frontRightWC.steerAngle = currentSteerAngle;
+        if (frontLeftWC.gameObject.activeInHierarchy && frontLeftWC.enabled) frontLeftWC.steerAngle = currentSteerAngle;
+        if (frontRightWC.gameObject.activeInHierarchy && frontRightWC.enabled) frontRightWC.steerAngle = currentSteerAngle;
 
         float acceleration = moveInput.y;
         bool isMovingForward = forwardDot > -0.5f;
         
         if (isHandbrakeEngaged)
         {
-            rearLeftWC.motorTorque = 0f;
-            rearRightWC.motorTorque = 0f;
-            rearLeftWC.brakeTorque = brakeTorque;
-            rearRightWC.brakeTorque = brakeTorque;
+            SetMotorTorque(rearLeftWC, 0f);
+            SetMotorTorque(rearRightWC, 0f);
+            SetBrakeTorque(rearLeftWC, brakeTorque);
+            SetBrakeTorque(rearRightWC, brakeTorque);
         }
         else
         {
             if (isMovingForward && acceleration > 0 && speedKMH >= maxSpeedForward)
             {
-                rearLeftWC.motorTorque = 0f;
-                rearRightWC.motorTorque = 0f;
+                SetMotorTorque(rearLeftWC, 0f);
+                SetMotorTorque(rearRightWC, 0f);
             }
             else if (!isMovingForward && acceleration < 0 && speedKMH >= maxSpeedReverse)
             {
-                rearLeftWC.motorTorque = 0f;
-                rearRightWC.motorTorque = 0f;
+                SetMotorTorque(rearLeftWC, 0f);
+                SetMotorTorque(rearRightWC, 0f);
             }
             else if (currentShiftTimer > 0)
             {
-                rearLeftWC.motorTorque = 0f;
-                rearRightWC.motorTorque = 0f;
+                SetMotorTorque(rearLeftWC, 0f);
+                SetMotorTorque(rearRightWC, 0f);
             }
             else if (currentFuelLiters <= 0f || currentBatteryPercent <= 0f || (carStartSystem != null && !carStartSystem.IsRunning))
             {
-                rearLeftWC.motorTorque = 0f;
-                rearRightWC.motorTorque = 0f;
-                rearLeftWC.brakeTorque = brakeTorque * 0.5f;
-                rearRightWC.brakeTorque = brakeTorque * 0.5f;
+                SetMotorTorque(rearLeftWC, 0f);
+                SetMotorTorque(rearRightWC, 0f);
+                SetBrakeTorque(rearLeftWC, brakeTorque * 0.5f);
+                SetBrakeTorque(rearRightWC, brakeTorque * 0.5f);
                 displayRPM = Mathf.Lerp(displayRPM, 0f, Time.fixedDeltaTime * 2f);
             }
             else
             {
-                rearLeftWC.motorTorque = acceleration * motorTorque;
-                rearRightWC.motorTorque = acceleration * motorTorque;
+                SetMotorTorque(rearLeftWC, acceleration * motorTorque);
+                SetMotorTorque(rearRightWC, acceleration * motorTorque);
             }
 
             if (currentFuelLiters > 0f && currentBatteryPercent > 0f)
             {
-                rearLeftWC.brakeTorque = 0f;
-                rearRightWC.brakeTorque = 0f;
+                SetBrakeTorque(rearLeftWC, 0f);
+                SetBrakeTorque(rearRightWC, 0f);
             }
         }
 
@@ -122,7 +122,22 @@ public partial class CarController
     private void UpdateSingleWheel(WheelCollider wc, Transform mesh)
     {
         if (!mesh) return;
-        wc.GetWorldPose(out Vector3 position, out Quaternion rotation);
-        mesh.SetPositionAndRotation(position, rotation);
+        if (wc != null && wc.gameObject.activeInHierarchy && wc.enabled)
+        {
+            wc.GetWorldPose(out Vector3 position, out Quaternion rotation);
+            mesh.SetPositionAndRotation(position, rotation);
+        }
+    }
+
+    private void SetMotorTorque(WheelCollider wc, float torque)
+    {
+        if (wc != null && wc.gameObject.activeInHierarchy && wc.enabled)
+            wc.motorTorque = torque;
+    }
+
+    private void SetBrakeTorque(WheelCollider wc, float torque)
+    {
+        if (wc != null && wc.gameObject.activeInHierarchy && wc.enabled)
+            wc.brakeTorque = torque;
     }
 }

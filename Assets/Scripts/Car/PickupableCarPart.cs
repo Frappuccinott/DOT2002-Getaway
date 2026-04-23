@@ -1,6 +1,5 @@
 using UnityEngine;
 
-[RequireComponent(typeof(Collider))]
 public class PickupableCarPart : MonoBehaviour, IInteractable
 {
     [Header("Parça Ayarları")]

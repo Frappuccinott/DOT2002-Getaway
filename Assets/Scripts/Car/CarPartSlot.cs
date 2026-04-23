@@ -10,8 +10,14 @@ public class CarPartSlot : MonoBehaviour, IInteractable
     [SerializeField] private string installPromptText = "Install [F]";
     [SerializeField] private string removePromptText = "Remove [F]";
 
+    [Header("Mekanik Bağlantılar")]
+    [SerializeField] private WheelCollider linkedWheelCollider;
+
     [Header("Yeşil Önizleme")]
     [SerializeField] private Color previewColor = new Color(0f, 1f, 0f, 0.35f);
+
+    [Header("Başlangıç Ayarları")]
+    [SerializeField] private bool isPreInstalled = false;
 
     private bool isInstalled;
     private PickupableCarPart installedPart;
@@ -21,6 +27,7 @@ public class CarPartSlot : MonoBehaviour, IInteractable
     private Material[][] originalMaterials;
     private Material previewMaterial;
     private bool isPreviewing;
+    private Collider detectionCollider;
 
     public CarPartType AcceptedPartType => acceptedPartType;
     public bool IsInstalled => isInstalled;
@@ -54,6 +61,11 @@ public class CarPartSlot : MonoBehaviour, IInteractable
             partVisual.SetActive(true);
             RestoreOriginalMaterials();
             if (part != null) part.gameObject.SetActive(false);
+
+            // Algılama collider'ını devre dışı bırak ki raycast partVisual'ın
+            // kendi collider'larına çarpsın. Bu sayede hem HingeDoor (sürükleme)
+            // hem CarPartSlot (çıkarma) GetComponentInParent ile bulunabilir.
+            if (detectionCollider != null) detectionCollider.enabled = false;
         }
         else if (part != null)
         {
@@ -69,13 +81,24 @@ public class CarPartSlot : MonoBehaviour, IInteractable
             PhysicsUtils.SetCollidersEnabled(obj, false);
         }
 
+        if (linkedWheelCollider != null) linkedWheelCollider.gameObject.SetActive(true);
+
         GetComponentInParent<CarAssemblyManager>()?.OnPartInstalled(acceptedPartType);
     }
 
     public PickupableCarPart Uninstall()
     {
         isInstalled = false;
-        if (partVisual != null) partVisual.SetActive(false);
+        if (partVisual != null)
+        {
+            partVisual.SetActive(false);
+
+            // partVisual gizlendiğinde collider'ları da gizlenir,
+            // algılama collider'ını tekrar aktifleştir ki slot tespit edilebilsin.
+            if (detectionCollider != null) detectionCollider.enabled = true;
+        }
+
+        if (linkedWheelCollider != null) linkedWheelCollider.gameObject.SetActive(false);
 
         PickupableCarPart part = installedPart;
         installedPart = null;
@@ -108,12 +131,117 @@ public class CarPartSlot : MonoBehaviour, IInteractable
 
         if (partVisual != null)
         {
-            renderers = partVisual.GetComponentsInChildren<Renderer>();
+            renderers = GetOnlyMyRenderers();
             originalMaterials = new Material[renderers.Length][];
             for (int i = 0; i < renderers.Length; i++)
                 originalMaterials[i] = renderers[i].sharedMaterials;
-            partVisual.SetActive(false);
+
+            // Slot'un kendisinde collider yoksa, partVisual'ın bounds'una göre
+            // otomatik olarak görünmez bir algılama collider'ı oluştur.
+            // partVisual.SetActive(false) çağrıldığında alt collider'lar da devre dışı
+            // kalacağı için, raycast'in slot'u bulabilmesi için bu gereklidir.
+            if (GetComponent<Collider>() == null)
+            {
+                CreateDetectionCollider();
+            }
+
+            // partVisual ve altındaki tüm objelerin layer'ını Interactable yap.
+            // Aksi takdirde, parça takıldığında (detectionCollider kapandığında)
+            // raycast partVisual'ın collider'larını göremez ve etkileşim kaybolur.
+            int interactableLayer = LayerMask.NameToLayer("Interactable");
+            if (interactableLayer >= 0)
+            {
+                if (gameObject.layer != interactableLayer) gameObject.layer = interactableLayer;
+                
+                Transform[] allChildren = partVisual.GetComponentsInChildren<Transform>(true);
+                foreach (Transform t in allChildren)
+                {
+                    if (t.gameObject.layer != interactableLayer)
+                        t.gameObject.layer = interactableLayer;
+                }
+            }
+
+            if (isPreInstalled)
+            {
+                // Parça baştan takılıysa, gizleme ve algılama collider'ını kapat
+                partVisual.SetActive(true);
+                isInstalled = true;
+                if (detectionCollider != null) detectionCollider.enabled = false;
+                
+                // Montaj yöneticisine de bildir
+                GetComponentInParent<CarAssemblyManager>()?.OnPartInstalled(acceptedPartType);
+                
+                if (linkedWheelCollider != null) linkedWheelCollider.gameObject.SetActive(true);
+            }
+            else
+            {
+                partVisual.SetActive(false);
+                if (linkedWheelCollider != null) linkedWheelCollider.gameObject.SetActive(false);
+            }
         }
+    }
+
+    /// <summary>
+    /// Bu slot'un görseli (partVisual) altında yer alan başka slotlar varsa ve
+    /// o slotlardan herhangi biri takılı (IsInstalled = true) ise true döner.
+    /// Bu sayede, üzerinde far takılı olan bir tamponun sökülmesini engelleyebiliriz.
+    /// </summary>
+    public bool HasInstalledChildSlots()
+    {
+        if (partVisual == null) return false;
+
+        CarPartSlot[] childSlots = partVisual.GetComponentsInChildren<CarPartSlot>(true);
+        foreach (var slot in childSlots)
+        {
+            if (slot != this && slot.IsInstalled)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// partVisual'ın mesh sınırlarını (bounds) kullanarak slot objesine
+    /// görünmez bir BoxCollider ekler. Bu sayede partVisual gizli olsa bile
+    /// raycast slot'u algılayabilir.
+    /// </summary>
+    private void CreateDetectionCollider()
+    {
+        Renderer[] visualRenderers = GetOnlyMyRenderers();
+        if (visualRenderers.Length == 0) return;
+
+        Bounds localBounds = new Bounds(transform.InverseTransformPoint(visualRenderers[0].bounds.center), Vector3.zero);
+        
+        foreach (Renderer r in visualRenderers)
+        {
+            Bounds rBounds = r.bounds;
+            // Bounds'un 8 köşesini local uzaya çevir ve encapsulate et
+            Vector3 ext = rBounds.extents;
+            Vector3 c = rBounds.center;
+            
+            Vector3[] corners = new Vector3[8];
+            corners[0] = transform.InverseTransformPoint(c + new Vector3(ext.x, ext.y, ext.z));
+            corners[1] = transform.InverseTransformPoint(c + new Vector3(ext.x, ext.y, -ext.z));
+            corners[2] = transform.InverseTransformPoint(c + new Vector3(ext.x, -ext.y, ext.z));
+            corners[3] = transform.InverseTransformPoint(c + new Vector3(ext.x, -ext.y, -ext.z));
+            corners[4] = transform.InverseTransformPoint(c + new Vector3(-ext.x, ext.y, ext.z));
+            corners[5] = transform.InverseTransformPoint(c + new Vector3(-ext.x, ext.y, -ext.z));
+            corners[6] = transform.InverseTransformPoint(c + new Vector3(-ext.x, -ext.y, ext.z));
+            corners[7] = transform.InverseTransformPoint(c + new Vector3(-ext.x, -ext.y, -ext.z));
+
+            foreach (Vector3 corner in corners)
+            {
+                localBounds.Encapsulate(corner);
+            }
+        }
+
+        BoxCollider detectionCol = gameObject.AddComponent<BoxCollider>();
+        detectionCol.center = localBounds.center;
+        detectionCol.size = localBounds.size;
+        detectionCol.isTrigger = true;
+
+        detectionCollider = detectionCol;
     }
 
     private void CreatePreviewMaterial()
@@ -177,5 +305,24 @@ public class CarPartSlot : MonoBehaviour, IInteractable
     private void OnDestroy()
     {
         if (previewMaterial != null) Destroy(previewMaterial);
+    }
+
+    private Renderer[] GetOnlyMyRenderers()
+    {
+        if (partVisual == null) return new Renderer[0];
+        
+        System.Collections.Generic.List<Renderer> myRenderers = new System.Collections.Generic.List<Renderer>();
+        Renderer[] allRenderers = partVisual.GetComponentsInChildren<Renderer>(true);
+        
+        foreach (var r in allRenderers)
+        {
+            CarPartSlot closestSlot = r.GetComponentInParent<CarPartSlot>();
+            if (closestSlot == this || closestSlot == null)
+            {
+                myRenderers.Add(r);
+            }
+        }
+        
+        return myRenderers.ToArray();
     }
 }
