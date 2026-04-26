@@ -18,6 +18,7 @@ public class HingeDoor : MonoBehaviour
     [Header("Kontrol")]
     [SerializeField] private float dragSensitivity = 0.5f;
     [SerializeField] private float smoothSpeed = 10f;
+    [SerializeField] private bool invertDrag = false;
 
     [Header("Bağlantılar")]
     [SerializeField] private CarPartSlot linkedSlot;
@@ -27,9 +28,10 @@ public class HingeDoor : MonoBehaviour
     private Quaternion initialRotation;
     private Transform rotationTarget;
 
-    // Çarpışma algılama için kapının kendi collider'larını ve kök (araba) collider'larını cache'liyoruz.
     private Collider[] doorColliders;
     private Collider[] carBodyColliders;
+    
+    private static Collider[] overlapResults = new Collider[10];
 
     public DoorType Type => doorType;
     public bool IsOpen => currentAngle > minAngle + 1f;
@@ -45,18 +47,11 @@ public class HingeDoor : MonoBehaviour
 
     private void Start()
     {
-        // Eğer bu obje yerden alınabilir bir parçaysa (PickupableCarPart varsa),
-        // Rigidbody ve IgnoreCollision kurulumunu YAPMA.
-        // Bu adımlar sadece arabaya takılı kapılar için gereklidir.
-        // Yerdeki parçanın kendi Rigidbody'si (gravity vb.) bozulmasın.
         bool isPickupable = GetComponent<PickupableCarPart>() != null;
 
         if (!isPickupable)
         {
-            // ─── 1) Kapıya Kinematic Rigidbody ekle ───
-            // Kapının collider'ları arabanın ana Rigidbody'sine bağlı olduğu için,
-            // kapı oyuncunun içine girdiğinde fizik motoru TÜM kuvveti arabanın Rigidbody'sine
-            // uyguluyordu ve bu da arabanın takla atmasına neden oluyordu.
+            // Kapıya Kinematic Rigidbody ekle
             Rigidbody rb = GetComponent<Rigidbody>();
             if (rb == null)
             {
@@ -65,7 +60,7 @@ public class HingeDoor : MonoBehaviour
             rb.isKinematic = true;
             rb.useGravity = false;
 
-            // ─── 2) Kapı <-> Araba gövdesi çarpışmalarını yoksay ───
+            // Kapı ve araba gövdesi çarpışmalarını yoksay
             doorColliders = GetComponentsInChildren<Collider>();
             Collider[] allRootColliders = transform.root.GetComponentsInChildren<Collider>();
 
@@ -93,7 +88,7 @@ public class HingeDoor : MonoBehaviour
             }
         }
 
-        // ─── 3) Menteşe (hinge) ayarı ───
+        // Menteşe ayarı
         if (hingePoint != null)
         {
             Transform originalParent = transform.parent;
@@ -115,39 +110,26 @@ public class HingeDoor : MonoBehaviour
     {
         if (Mathf.Approximately(currentAngle, targetAngle)) return;
 
-        // ─── Kapıyı döndürmeden ÖNCE overlap kontrolü yap ───
-        // Yeni açıyı hesapla
         float newAngle = Mathf.Lerp(currentAngle, targetAngle, smoothSpeed * Time.deltaTime);
         if (Mathf.Abs(newAngle - targetAngle) < 0.01f) newAngle = targetAngle;
 
-        // Rotasyonu geçici olarak uygula
         Quaternion newRotation = initialRotation * Quaternion.AngleAxis(newAngle, rotationAxis);
         Quaternion oldRotation = rotationTarget.localRotation;
         rotationTarget.localRotation = newRotation;
 
-        // Fizik transform'larını güncelle ki overlap kontrolü doğru çalışsın
         Physics.SyncTransforms();
 
-        // Her bir kapı collider'ı için dış dünya ile çakışma var mı kontrol et
         if (IsOverlappingExternalObject())
         {
-            // Çakışma var! Rotasyonu geri al, kapıyı durdur
             rotationTarget.localRotation = oldRotation;
             Physics.SyncTransforms();
             targetAngle = currentAngle;
             return;
         }
 
-        // Çakışma yok, yeni açıyı uygula
         currentAngle = newAngle;
     }
 
-    /// <summary>
-    /// Kapının collider'larının araba dışı herhangi bir obje (oyuncu, duvar vs.) ile
-    /// çakışıp çakışmadığını kontrol eder.
-    /// CharacterController standart OnCollision callback'lerini tetiklemediği için,
-    /// proaktif overlap kontrolü yapıyoruz.
-    /// </summary>
     private bool IsOverlappingExternalObject()
     {
         if (doorColliders == null) return false;
@@ -157,28 +139,25 @@ public class HingeDoor : MonoBehaviour
             if (col == null || !col.enabled) continue;
 
             Bounds bounds = col.bounds;
-            // Küçültülmüş boyut kullanarak hassasiyet sağlıyoruz
             Vector3 halfExtents = bounds.extents * 0.9f;
 
-            Collider[] overlaps = Physics.OverlapBox(
+            int count = Physics.OverlapBoxNonAlloc(
                 bounds.center,
                 halfExtents,
-                col.transform.rotation,
-                ~0, // Tüm layer'lar
+                overlapResults,
+                Quaternion.identity, 
+                ~0, 
                 QueryTriggerInteraction.Ignore
             );
 
-            foreach (var overlap in overlaps)
+            for (int i = 0; i < count; i++)
             {
+                Collider overlap = overlapResults[i];
                 if (overlap == null) continue;
 
-                // Kapının kendi collider'larını atla
                 if (IsOwnCollider(overlap)) continue;
-
-                // Arabanın gövde collider'larını atla (zaten IgnoreCollision ile devre dışı ama array kontrolü de yapalım)
                 if (IsCarBodyCollider(overlap)) continue;
 
-                // Dış dünya objesi ile çakışma bulundu!
                 return true;
             }
         }
@@ -208,7 +187,26 @@ public class HingeDoor : MonoBehaviour
 
     public void DragDoor(Vector2 mouseDelta)
     {
-        targetAngle += mouseDelta.x * dragSensitivity;
+        float dragAmount = mouseDelta.x * dragSensitivity;
+        if (invertDrag) dragAmount = -dragAmount;
+
+        // Gerçekçi hissiyat: Sınırlara yaklaştıkça kapının ağırlaşması (direnç)
+        float resistance = 1f;
+        float margin = 15f; // Sınırlara 15 derece kala direnç başlar
+
+        if (dragAmount > 0 && targetAngle > maxAngle - margin)
+        {
+            resistance = Mathf.Clamp01((maxAngle - targetAngle) / margin);
+        }
+        else if (dragAmount < 0 && targetAngle < minAngle + margin)
+        {
+            resistance = Mathf.Clamp01((targetAngle - minAngle) / margin);
+        }
+
+        // Tamamen kilitlenmemesi için minimum %10 hız
+        resistance = Mathf.Max(resistance, 0.1f);
+
+        targetAngle += dragAmount * resistance;
         targetAngle = Mathf.Clamp(targetAngle, minAngle, maxAngle);
     }
 
@@ -224,7 +222,6 @@ public class HingeDoor : MonoBehaviour
     {
         if (rotationTarget == null) return;
         
-        // Kapıyı çarptığı yerde anında durdur
         targetAngle = currentAngle;
         rotationTarget.localRotation = initialRotation * Quaternion.AngleAxis(currentAngle, rotationAxis);
     }

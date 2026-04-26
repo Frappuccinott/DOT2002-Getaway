@@ -290,8 +290,24 @@ public class PlayerController : MonoBehaviour
         HingeDoor door = hit.collider.GetComponentInParent<HingeDoor>();
         if (door != null)
         {
-            // Kapı hareket halindeyken oyuncuya çarparsa hareketi durdurarak takla atılmasını önle
             door.StopDoor();
+        }
+
+        Rigidbody body = hit.collider.attachedRigidbody;
+        if (body != null && !body.isKinematic)
+        {
+            PickupableCarPart part = hit.collider.GetComponentInParent<PickupableCarPart>();
+            FluidContainer fluid = hit.collider.GetComponentInParent<FluidContainer>();
+            
+            // Sadece araba parçalarını ve bidonları ayakla itebilelim
+            if (part != null || fluid != null)
+            {
+                // Yere basma açısını yoksay (sadece yatay kuvvet uygula ki ezilmesin)
+                if (hit.moveDirection.y < -0.3f) return;
+
+                Vector3 pushDir = new Vector3(hit.moveDirection.x, 0, hit.moveDirection.z);
+                body.linearVelocity = pushDir * 3f; // Hafifçe savur
+            }
         }
     }
 }

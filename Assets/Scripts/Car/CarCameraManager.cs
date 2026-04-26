@@ -68,7 +68,7 @@ public class CarCameraManager : MonoBehaviour
                 UpdateTargetCamera();
             }
 
-            bool pressed = (cameraAction != null && cameraAction.WasPressedThisFrame()) || (Keyboard.current != null && Keyboard.current.vKey.wasPressedThisFrame);
+            bool pressed = (cameraAction != null && cameraAction.WasPressedThisFrame());
 
             if (pressed)
             {

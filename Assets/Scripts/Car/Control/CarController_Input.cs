@@ -50,7 +50,15 @@ public partial class CarController
         areHeadlightsOn = !areHeadlightsOn;
         if (headlights != null)
         {
-            foreach (var light in headlights) { if (light != null) light.SetActive(areHeadlightsOn); }
+            foreach (var light in headlights) 
+            { 
+                if (light != null) 
+                {
+                    CarPartSlot slot = light.GetComponentInParent<CarPartSlot>(true);
+                    if (slot != null && !slot.IsInstalled) continue;
+                    light.SetActive(areHeadlightsOn); 
+                } 
+            }
         }
         OnHeadlightsToggled?.Invoke(areHeadlightsOn);
     }

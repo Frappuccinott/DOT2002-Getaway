@@ -33,7 +33,15 @@ public partial class CarController
                 areHeadlightsOn = false;
                 if (headlights != null)
                 {
-                    foreach (var light in headlights) { if (light != null) light.SetActive(false); }
+                    foreach (var light in headlights) 
+                    { 
+                        if (light != null) 
+                        {
+                            CarPartSlot slot = light.GetComponentInParent<CarPartSlot>(true);
+                            if (slot != null && !slot.IsInstalled) continue;
+                            light.SetActive(areHeadlightsOn); 
+                        } 
+                    }
                 }
             }
             if (handbrakeLight != null && handbrakeLight.activeSelf)
@@ -191,7 +199,14 @@ public partial class CarController
         bool isBraking = (moveInput.y < 0) && (currentBatteryPercent > 0f);
         foreach (var light in brakeLights)
         {
-            if (light != null && light.activeSelf != isBraking) light.SetActive(isBraking);
+            if (light != null)
+            {
+                CarPartSlot slot = light.GetComponentInParent<CarPartSlot>(true);
+                bool actualBraking = isBraking;
+                if (slot != null && !slot.IsInstalled) actualBraking = false;
+
+                if (light.activeSelf != actualBraking) light.SetActive(actualBraking);
+            }
         }
     }
 }

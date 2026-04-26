@@ -153,5 +153,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1222dd7c9ceb0644bbc7d863e2030b0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PickupableCarPart
-  partType: 25
+  partType: 22
   promptText: 'Grab Part [F]'

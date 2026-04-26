@@ -62,9 +62,6 @@ public class CarPartSlot : MonoBehaviour, IInteractable
             RestoreOriginalMaterials();
             if (part != null) part.gameObject.SetActive(false);
 
-            // Algılama collider'ını devre dışı bırak ki raycast partVisual'ın
-            // kendi collider'larına çarpsın. Bu sayede hem HingeDoor (sürükleme)
-            // hem CarPartSlot (çıkarma) GetComponentInParent ile bulunabilir.
             if (detectionCollider != null) detectionCollider.enabled = false;
         }
         else if (part != null)
