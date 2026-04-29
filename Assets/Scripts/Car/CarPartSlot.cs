@@ -6,6 +6,7 @@ public class CarPartSlot : MonoBehaviour, IInteractable
     [SerializeField] private CarPartType acceptedPartType;
     [SerializeField] private GameObject partVisual;
 
+
     [Header("Interaction Strings")]
     [SerializeField] private string installPromptText = "Install [F]";
     [SerializeField] private string removePromptText = "Remove [F]";
@@ -21,6 +22,7 @@ public class CarPartSlot : MonoBehaviour, IInteractable
 
     private bool isInstalled;
     private PickupableCarPart installedPart;
+    private Vector3 installedPartOriginalScale;
     private PlayerInteraction cachedPlayer;
 
     private Renderer[] renderers;
@@ -48,11 +50,11 @@ public class CarPartSlot : MonoBehaviour, IInteractable
         }
     }
 
-
-    public void Install(PickupableCarPart part)
+    public void Install(PickupableCarPart part, Vector3 originalScale)
     {
         isInstalled = true;
         installedPart = part;
+        installedPartOriginalScale = originalScale;
 
         if (isPreviewing) HidePreview();
 
@@ -60,9 +62,34 @@ public class CarPartSlot : MonoBehaviour, IInteractable
         {
             partVisual.SetActive(true);
             RestoreOriginalMaterials();
-            if (part != null) part.gameObject.SetActive(false);
-
             if (detectionCollider != null) detectionCollider.enabled = false;
+
+            if (part != null)
+            {
+                GameObject obj = part.gameObject;
+                AudioSource audio = obj.GetComponent<AudioSource>();
+
+                if (audio != null && audio.isPlaying)
+                {
+                    // Keep audio alive: parent to slot, shrink to invisible
+                    obj.transform.SetParent(transform);
+                    obj.transform.localPosition = Vector3.zero;
+                    obj.transform.localRotation = Quaternion.identity;
+                    obj.transform.localScale = Vector3.one * 0.001f;
+
+                    Renderer[] partRenderers = obj.GetComponentsInChildren<Renderer>();
+                    foreach (var r in partRenderers) r.enabled = false;
+
+                    Rigidbody rb = obj.GetComponent<Rigidbody>();
+                    if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
+
+                    PhysicsUtils.SetCollidersEnabled(obj, false);
+                }
+                else
+                {
+                    obj.SetActive(false);
+                }
+            }
         }
         else if (part != null)
         {
@@ -76,10 +103,11 @@ public class CarPartSlot : MonoBehaviour, IInteractable
             if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
 
             PhysicsUtils.SetCollidersEnabled(obj, false);
+            if (detectionCollider != null) detectionCollider.enabled = false;
         }
 
         if (linkedWheelCollider != null) linkedWheelCollider.gameObject.SetActive(true);
-
+        IgnoreCollisionsWithDoors();
         GetComponentInParent<CarAssemblyManager>()?.OnPartInstalled(acceptedPartType);
     }
 
@@ -89,11 +117,11 @@ public class CarPartSlot : MonoBehaviour, IInteractable
         if (partVisual != null)
         {
             partVisual.SetActive(false);
-
-            // partVisual gizlendiğinde collider'ları da gizlenir,
-            // algılama collider'ını tekrar aktifleştir ki slot tespit edilebilsin.
             if (detectionCollider != null) detectionCollider.enabled = true;
         }
+
+        Collider myCol = GetComponent<Collider>();
+        if (myCol != null) myCol.enabled = true;
 
         if (linkedWheelCollider != null) linkedWheelCollider.gameObject.SetActive(false);
 
@@ -104,7 +132,12 @@ public class CarPartSlot : MonoBehaviour, IInteractable
         {
             GameObject obj = part.gameObject;
             obj.transform.SetParent(null);
+            obj.transform.localScale = installedPartOriginalScale;
             obj.SetActive(true);
+
+            Renderer[] partRenderers = obj.GetComponentsInChildren<Renderer>();
+            foreach (var r in partRenderers) r.enabled = true;
+
             PhysicsUtils.SetCollidersEnabled(obj, true);
         }
 
@@ -117,7 +150,6 @@ public class CarPartSlot : MonoBehaviour, IInteractable
         if (partVisual == null || isInstalled) return;
 
         bool shouldPreview = isLooking && hasCorrectPart;
-
         if (shouldPreview && !isPreviewing) ShowPreview();
         else if (!shouldPreview && isPreviewing) HidePreview();
     }
@@ -133,23 +165,14 @@ public class CarPartSlot : MonoBehaviour, IInteractable
             for (int i = 0; i < renderers.Length; i++)
                 originalMaterials[i] = renderers[i].sharedMaterials;
 
-            // Slot'un kendisinde collider yoksa, partVisual'ın bounds'una göre
-            // otomatik olarak görünmez bir algılama collider'ı oluştur.
-            // partVisual.SetActive(false) çağrıldığında alt collider'lar da devre dışı
-            // kalacağı için, raycast'in slot'u bulabilmesi için bu gereklidir.
             if (GetComponent<Collider>() == null)
-            {
                 CreateDetectionCollider();
-            }
 
-            // partVisual ve altındaki tüm objelerin layer'ını Interactable yap.
-            // Aksi takdirde, parça takıldığında (detectionCollider kapandığında)
-            // raycast partVisual'ın collider'larını göremez ve etkileşim kaybolur.
             int interactableLayer = LayerMask.NameToLayer("Interactable");
             if (interactableLayer >= 0)
             {
                 if (gameObject.layer != interactableLayer) gameObject.layer = interactableLayer;
-                
+
                 Transform[] allChildren = partVisual.GetComponentsInChildren<Transform>(true);
                 foreach (Transform t in allChildren)
                 {
@@ -160,14 +183,11 @@ public class CarPartSlot : MonoBehaviour, IInteractable
 
             if (isPreInstalled)
             {
-                // Parça baştan takılıysa, gizleme ve algılama collider'ını kapat
                 partVisual.SetActive(true);
                 isInstalled = true;
                 if (detectionCollider != null) detectionCollider.enabled = false;
-                
-                // Montaj yöneticisine de bildir
+                IgnoreCollisionsWithDoors();
                 GetComponentInParent<CarAssemblyManager>()?.OnPartInstalled(acceptedPartType);
-                
                 if (linkedWheelCollider != null) linkedWheelCollider.gameObject.SetActive(true);
             }
             else
@@ -178,45 +198,30 @@ public class CarPartSlot : MonoBehaviour, IInteractable
         }
     }
 
-    /// <summary>
-    /// Bu slot'un görseli (partVisual) altında yer alan başka slotlar varsa ve
-    /// o slotlardan herhangi biri takılı (IsInstalled = true) ise true döner.
-    /// Bu sayede, üzerinde far takılı olan bir tamponun sökülmesini engelleyebiliriz.
-    /// </summary>
     public bool HasInstalledChildSlots()
     {
         if (partVisual == null) return false;
-
         CarPartSlot[] childSlots = partVisual.GetComponentsInChildren<CarPartSlot>(true);
         foreach (var slot in childSlots)
         {
-            if (slot != this && slot.IsInstalled)
-            {
-                return true;
-            }
+            if (slot != this && slot.IsInstalled) return true;
         }
         return false;
     }
 
-    /// <summary>
-    /// partVisual'ın mesh sınırlarını (bounds) kullanarak slot objesine
-    /// görünmez bir BoxCollider ekler. Bu sayede partVisual gizli olsa bile
-    /// raycast slot'u algılayabilir.
-    /// </summary>
     private void CreateDetectionCollider()
     {
         Renderer[] visualRenderers = GetOnlyMyRenderers();
         if (visualRenderers.Length == 0) return;
 
         Bounds localBounds = new Bounds(transform.InverseTransformPoint(visualRenderers[0].bounds.center), Vector3.zero);
-        
+
         foreach (Renderer r in visualRenderers)
         {
             Bounds rBounds = r.bounds;
-            // Bounds'un 8 köşesini local uzaya çevir ve encapsulate et
             Vector3 ext = rBounds.extents;
             Vector3 c = rBounds.center;
-            
+
             Vector3[] corners = new Vector3[8];
             corners[0] = transform.InverseTransformPoint(c + new Vector3(ext.x, ext.y, ext.z));
             corners[1] = transform.InverseTransformPoint(c + new Vector3(ext.x, ext.y, -ext.z));
@@ -228,16 +233,13 @@ public class CarPartSlot : MonoBehaviour, IInteractable
             corners[7] = transform.InverseTransformPoint(c + new Vector3(-ext.x, -ext.y, -ext.z));
 
             foreach (Vector3 corner in corners)
-            {
                 localBounds.Encapsulate(corner);
-            }
         }
 
         BoxCollider detectionCol = gameObject.AddComponent<BoxCollider>();
         detectionCol.center = localBounds.center;
         detectionCol.size = localBounds.size;
         detectionCol.isTrigger = true;
-
         detectionCollider = detectionCol;
     }
 
@@ -307,19 +309,41 @@ public class CarPartSlot : MonoBehaviour, IInteractable
     private Renderer[] GetOnlyMyRenderers()
     {
         if (partVisual == null) return new Renderer[0];
-        
+
         System.Collections.Generic.List<Renderer> myRenderers = new System.Collections.Generic.List<Renderer>();
         Renderer[] allRenderers = partVisual.GetComponentsInChildren<Renderer>(true);
-        
+
         foreach (var r in allRenderers)
         {
             CarPartSlot closestSlot = r.GetComponentInParent<CarPartSlot>();
             if (closestSlot == this || closestSlot == null)
-            {
                 myRenderers.Add(r);
+        }
+
+        return myRenderers.ToArray();
+    }
+
+    private void IgnoreCollisionsWithDoors()
+    {
+        if (partVisual == null) return;
+        
+        Collider[] myColliders = partVisual.GetComponentsInChildren<Collider>();
+        if (myColliders.Length == 0) return;
+
+        HingeDoor[] doors = transform.root.GetComponentsInChildren<HingeDoor>(true);
+        foreach (var door in doors)
+        {
+            Collider[] doorCols = door.GetComponentsInChildren<Collider>();
+            foreach (var dCol in doorCols)
+            {
+                foreach (var mCol in myColliders)
+                {
+                    if (dCol.enabled && mCol.enabled && dCol.gameObject.activeInHierarchy && mCol.gameObject.activeInHierarchy)
+                    {
+                        Physics.IgnoreCollision(dCol, mCol, true);
+                    }
+                }
             }
         }
-        
-        return myRenderers.ToArray();
     }
 }

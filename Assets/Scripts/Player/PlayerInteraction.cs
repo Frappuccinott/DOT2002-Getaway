@@ -109,8 +109,6 @@ public class PlayerInteraction : MonoBehaviour
         inputActions.Player.Pickup.performed -= OnPickupPressed;
     }
 
-
-
     private void Update()
     {
         PerformRaycast();
@@ -130,8 +128,12 @@ public class PlayerInteraction : MonoBehaviour
         {
             if (inputActions.Player.Attack.WasPressedThisFrame())
             {
-                ThrowHeldObject();
-                return;
+                bool isLookingAtInteractable = currentInteractable != null || currentDoor != null || currentFluidTank != null || currentIgnition != null || currentSeat != null || lastLookedSlot != null;
+                if (!isLookingAtInteractable)
+                {
+                    ThrowHeldObject();
+                    return;
+                }
             }
         }
 
@@ -168,6 +170,9 @@ public class PlayerInteraction : MonoBehaviour
         CarStartSystem foundCarSys = null;
         Vector3 hitPoint = Vector3.zero;
 
+        Collider fallbackCarCollider = null;
+        Vector3 fallbackHitPoint = Vector3.zero;
+
         for (int i = 0; i < hitCount; i++)
         {
             var hit = hits[i];
@@ -186,7 +191,7 @@ public class PlayerInteraction : MonoBehaviour
             CarIgnition ignition = hit.collider.GetComponentInParent<CarIgnition>();
             CarPartSlot slot = hit.collider.GetComponentInParent<CarPartSlot>();
 
-            if (HasCarPart && slot != null && !slot.IsInstalled && slot.AcceptedPartType != heldPart.PartType)
+            if (slot != null && !slot.IsInstalled && !slot.CanInteract)
             {
                 slot = null;
                 if (interactable is CarPartSlot) interactable = null;
@@ -202,6 +207,12 @@ public class PlayerInteraction : MonoBehaviour
 
             if (interactable == null && seat == null && door == null && fluidTank == null && ignition == null && slot == null)
             {
+                if (fallbackCarCollider == null && (hit.collider.transform.root.GetComponentInChildren<CarController>() != null || 
+                    hit.collider.transform.root.GetComponentInChildren<CarStartSystem>() != null))
+                {
+                    fallbackCarCollider = hit.collider;
+                    fallbackHitPoint = hit.point;
+                }
                 continue;
             }
 
@@ -219,18 +230,24 @@ public class PlayerInteraction : MonoBehaviour
 
         if (bestCollider == null)
         {
-            ClearInteractionState();
-            return;
+            if (fallbackCarCollider != null)
+            {
+                bestCollider = fallbackCarCollider;
+                hitPoint = fallbackHitPoint;
+            }
+            else
+            {
+                ClearInteractionState();
+                return;
+            }
         }
-
-        isLookingAtCarInterior = false;
 
         if (bestCollider != lastHitCollider)
         {
             lastHitCollider = bestCollider;
             currentInteractable = foundInteractable;
 
-            if (foundSeat == null)
+            if (foundSeat == null && foundDoor == null && foundFluidTank == null && foundIgnition == null)
             {
                 Transform root = bestCollider.transform.root;
                 if (root.GetComponentInChildren<CarController>() != null || root.GetComponentInChildren<CarStartSystem>() != null)
@@ -242,7 +259,7 @@ public class PlayerInteraction : MonoBehaviour
                         if (!s.enabled || (s.TryGetComponent<PickupableCarPart>(out var p) && p.enabled)) continue;
                         
                         float dist = Vector3.Distance(hitPoint, s.transform.position);
-                        if (dist < closestDist && dist < 2f)
+                        if (dist < closestDist && dist < 1.0f)
                         {
                             closestDist = dist;
                             foundSeat = s;
@@ -269,17 +286,30 @@ public class PlayerInteraction : MonoBehaviour
             }
         }
 
-        if (playerController != null && playerController.IsSitting && playerController.CurrentSeat != null)
+        isLookingAtCarInterior = false;
+        if (bestCollider != null && playerController != null && playerController.IsSitting && playerController.CurrentSeat != null)
         {
+            if (bestCollider.transform.root == playerController.CurrentSeat.root)
+            {
+                isLookingAtCarInterior = true;
+
+                CarPartSlot slot = bestCollider.GetComponentInParent<CarPartSlot>();
+                if (slot != null && !slot.IsInstalled)
+                {
+                    if (slot.AcceptedPartType == CarPartType.FrontDoorLeft ||
+                        slot.AcceptedPartType == CarPartType.FrontDoorRight ||
+                        slot.AcceptedPartType == CarPartType.RearDoorLeft ||
+                        slot.AcceptedPartType == CarPartType.RearDoorRight)
+                    {
+                        isLookingAtCarInterior = false;
+                    }
+                }
+            }
+
             if (cachedSeatTransform != playerController.CurrentSeat)
             {
                 cachedSeatTransform = playerController.CurrentSeat;
                 cachedSeatRb = cachedSeatTransform.GetComponentInParent<Rigidbody>();
-            }
-
-            if (currentIgnition == null)
-            {
-                isLookingAtCarInterior = false; 
             }
         }
 
@@ -335,6 +365,30 @@ public class PlayerInteraction : MonoBehaviour
             if (currentInteractable is CarPartSlot ts && !ts.IsInstalled && heldPart.PartType == ts.AcceptedPartType)
             { InstallPart(ts); return; }
 
+            // Fallback: direct raycast slot search
+            if (playerCamera != null)
+            {
+                Ray ray = playerCamera.ViewportPointToRay(VIEWPORT_CENTER);
+                if (Physics.Raycast(ray, out RaycastHit fallbackHit, interactionRange, interactionLayer, QueryTriggerInteraction.Collide))
+                {
+                    Transform root = fallbackHit.collider.transform.root;
+                    CarPartSlot[] allSlots = root.GetComponentsInChildren<CarPartSlot>(true);
+                    float closestDist = float.MaxValue;
+                    CarPartSlot bestSlot = null;
+                    foreach (var s in allSlots)
+                    {
+                        if (s.IsInstalled || s.AcceptedPartType != heldPart.PartType) continue;
+                        float dist = Vector3.Distance(fallbackHit.point, s.transform.position);
+                        if (dist < closestDist && dist < 2f)
+                        {
+                            closestDist = dist;
+                            bestSlot = s;
+                        }
+                    }
+                    if (bestSlot != null) { InstallPart(bestSlot); return; }
+                }
+            }
+
             DropPart();
         }
     }
@@ -386,7 +440,7 @@ public class PlayerInteraction : MonoBehaviour
                     currentIgnition.ToggleHandsOnWheel();
                 }
             }
-            else if (currentDoor != null && currentDoor.Type == HingeDoor.DoorType.FuelCap)
+            else if (currentDoor != null)
             {
                 currentDoor.ToggleOpen();
             }
@@ -456,6 +510,7 @@ public class PlayerInteraction : MonoBehaviour
         Rigidbody rb = obj.GetComponent<Rigidbody>();
         if (rb != null) 
         { 
+            rb.isKinematic = false;
             heldObjectOriginalMass = rb.mass;
             rb.mass = 0.0001f;
             rb.useGravity = false;
@@ -485,6 +540,7 @@ public class PlayerInteraction : MonoBehaviour
         Rigidbody rb = obj.GetComponent<Rigidbody>();
         if (rb != null)
         {
+            rb.isKinematic = false;
             rb.mass = heldObjectOriginalMass;
             rb.useGravity = true;
             rb.linearDamping = 0.05f;
@@ -525,6 +581,7 @@ public class PlayerInteraction : MonoBehaviour
         Rigidbody rb = objToThrow.GetComponent<Rigidbody>();
         if (rb != null)
         {
+            rb.isKinematic = false;
             rb.mass = heldObjectOriginalMass;
             rb.useGravity = true;
             rb.linearDamping = 0.05f;
@@ -546,13 +603,8 @@ public class PlayerInteraction : MonoBehaviour
     private void InstallPart(CarPartSlot slot)
     {
         PickupableCarPart part = heldPart;
-        slot.Install(part);
-
-        GameObject obj = part.gameObject;
-        obj.transform.SetParent(null);
-        obj.transform.localScale = heldPartOriginalScale;
-        obj.SetActive(false);
-
+        slot.Install(part, heldPartOriginalScale);
+        SetLayerRecursively(part.gameObject, LayerMask.NameToLayer("Interactable"));
         ResetCarryState();
     }
 
@@ -708,8 +760,14 @@ public class PlayerInteraction : MonoBehaviour
         }
         if (currentSeat != null && !HasCarPart && !HasFluidContainer) { tooltip.ShowPrompt(currentSeat.InteractionPrompt); return; }
         if (currentIgnition != null) { tooltip.ShowPrompt(currentIgnition.InteractionPrompt); return; }
-        if (currentDoor != null && currentDoor.Type == HingeDoor.DoorType.FuelCap) { tooltip.ShowPrompt(openCloseFuelCapPrompt); return; }
-        if (currentDoor != null) { tooltip.ShowPrompt(dragDoorPrompt); return; }
+        if (currentDoor != null) 
+        { 
+            if (currentDoor.Type == HingeDoor.DoorType.FuelCap || currentDoor.Type == HingeDoor.DoorType.GenericDoor)
+                tooltip.ShowPrompt("Open/Close [E]");
+            else
+                tooltip.ShowPrompt($"{dragDoorPrompt} / Open/Close [E]"); 
+            return; 
+        }
 
         tooltip.HidePrompt();
     }

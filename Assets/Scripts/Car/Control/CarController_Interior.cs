@@ -6,17 +6,12 @@ public partial class CarController
     {
         if (gearShiftMesh)
         {
-            Vector3 targetGearRot = neutralRot;
-            switch (displayGear)
+            Vector3 targetGearRot = displayGear switch
             {
-                case "R": targetGearRot = reverseRot; break;
-                case "1": targetGearRot = gear1Rot; break;
-                case "2": targetGearRot = gear2Rot; break;
-                case "3": targetGearRot = gear3Rot; break;
-                case "4": targetGearRot = gear4Rot; break;
-                case "5": targetGearRot = gear5Rot; break;
-                case "N": default: targetGearRot = neutralRot; break;
-            }
+                "R" => reverseRot, "1" => gear1Rot, "2" => gear2Rot,
+                "3" => gear3Rot, "4" => gear4Rot, "5" => gear5Rot,
+                _ => neutralRot
+            };
             gearShiftMesh.localRotation = Quaternion.Slerp(gearShiftMesh.localRotation, Quaternion.Euler(targetGearRot), Time.deltaTime * gearShiftSmoothness);
         }
 
@@ -61,22 +56,17 @@ public partial class CarController
         if (isSweepingDials) return;
 
         SmoothNeedle(speedometerNeedle, speedometerCurve.Evaluate(displaySpeed), 6f);
-
-        float fuelRatio = currentFuelLiters / maxFuelLiters;
-        SmoothNeedle(fuelNeedle, Mathf.Lerp(fuelEmptyAngle, fuelFullAngle, fuelRatio), 2f);
+        SmoothNeedle(fuelNeedle, Mathf.Lerp(fuelEmptyAngle, fuelFullAngle, currentFuelLiters / maxFuelLiters), 2f);
 
         float effectiveBattery = (carStartSystem != null && carStartSystem.HasBattery) ? currentBatteryPercent : 0f;
         SmoothNeedle(batteryNeedle, Mathf.Lerp(batteryEmptyAngle, batteryFullAngle, effectiveBattery / maxBatteryPercent), 2f);
-
-        float waterRatio = currentCoolingWaterLiters / maxCoolingWaterLiters;
-        SmoothNeedle(waterNeedle, Mathf.Lerp(waterEmptyAngle, waterFullAngle, waterRatio), 2f);
+        SmoothNeedle(waterNeedle, Mathf.Lerp(waterEmptyAngle, waterFullAngle, currentCoolingWaterLiters / maxCoolingWaterLiters), 2f);
     }
 
     private void SmoothNeedle(Transform needle, float targetAngle, float speed)
     {
         if (needle == null) return;
-        float currentZ = needle.localEulerAngles.z;
-        float smoothZ = Mathf.LerpAngle(currentZ, targetAngle, Time.deltaTime * speed);
+        float smoothZ = Mathf.LerpAngle(needle.localEulerAngles.z, targetAngle, Time.deltaTime * speed);
         needle.localRotation = Quaternion.Euler(needle.localEulerAngles.x, needle.localEulerAngles.y, smoothZ);
     }
 
@@ -90,29 +80,21 @@ public partial class CarController
     private System.Collections.IEnumerator StartupSweepRoutine()
     {
         isSweepingDials = true;
-        
-        float duration = 3.0f; // 3 saniye
-        float halfDuration = duration / 2f;
+        float halfDuration = 1.5f;
         float elapsed = 0f;
 
-        // Phase 1: İbreleri Max seviyeye taşı
         while (elapsed < halfDuration)
         {
             elapsed += Time.deltaTime;
-            float t = elapsed / halfDuration;
-            float smoothT = Mathf.SmoothStep(0f, 1f, t);
-            SetSweepAngles(smoothT);
+            SetSweepAngles(Mathf.SmoothStep(0f, 1f, elapsed / halfDuration));
             yield return null;
         }
 
-        // Phase 2: İbreleri Min seviyeye taşı (Gerçek pozisyonlarına SmoothNeedle dönünce geçerler)
         elapsed = 0f;
         while (elapsed < halfDuration)
         {
             elapsed += Time.deltaTime;
-            float t = elapsed / halfDuration;
-            float smoothT = Mathf.SmoothStep(1f, 0f, t);
-            SetSweepAngles(smoothT);
+            SetSweepAngles(Mathf.SmoothStep(1f, 0f, elapsed / halfDuration));
             yield return null;
         }
 
@@ -121,25 +103,15 @@ public partial class CarController
 
     private void SetSweepAngles(float t)
     {
-        if (speedometerNeedle != null)
-        {
-            float angle = Mathf.Lerp(speedometerCurve.Evaluate(0f), speedometerCurve.Evaluate(220f), t);
-            speedometerNeedle.localRotation = Quaternion.Euler(speedometerNeedle.localEulerAngles.x, speedometerNeedle.localEulerAngles.y, angle);
-        }
-        if (fuelNeedle != null)
-        {
-            float angle = Mathf.Lerp(fuelEmptyAngle, fuelFullAngle, t);
-            fuelNeedle.localRotation = Quaternion.Euler(fuelNeedle.localEulerAngles.x, fuelNeedle.localEulerAngles.y, angle);
-        }
-        if (batteryNeedle != null)
-        {
-            float angle = Mathf.Lerp(batteryEmptyAngle, batteryFullAngle, t);
-            batteryNeedle.localRotation = Quaternion.Euler(batteryNeedle.localEulerAngles.x, batteryNeedle.localEulerAngles.y, angle);
-        }
-        if (waterNeedle != null)
-        {
-            float angle = Mathf.Lerp(waterEmptyAngle, waterFullAngle, t);
-            waterNeedle.localRotation = Quaternion.Euler(waterNeedle.localEulerAngles.x, waterNeedle.localEulerAngles.y, angle);
-        }
+        SetNeedleAngle(speedometerNeedle, Mathf.Lerp(speedometerCurve.Evaluate(0f), speedometerCurve.Evaluate(220f), t));
+        SetNeedleAngle(fuelNeedle, Mathf.Lerp(fuelEmptyAngle, fuelFullAngle, t));
+        SetNeedleAngle(batteryNeedle, Mathf.Lerp(batteryEmptyAngle, batteryFullAngle, t));
+        SetNeedleAngle(waterNeedle, Mathf.Lerp(waterEmptyAngle, waterFullAngle, t));
+    }
+
+    private void SetNeedleAngle(Transform needle, float angle)
+    {
+        if (needle != null)
+            needle.localRotation = Quaternion.Euler(needle.localEulerAngles.x, needle.localEulerAngles.y, angle);
     }
 }

@@ -91,10 +91,11 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         playerLook = GetComponent<PlayerLook>();
 
-        defaultCenter = controller.center;
         defaultHeight = controller.height;
         standHeight = defaultHeight;
         targetHeight = standHeight;
+
+        if (rb != null) rb.isKinematic = true;
     }
 
     private void OnEnable()
@@ -213,8 +214,6 @@ public class PlayerController : MonoBehaviour
             
             foreach (var col in allColliders) col.enabled = true;
             
-            if (rb != null) rb.isKinematic = false;
-            
             controller.enabled = true;
         }
     }
@@ -269,7 +268,6 @@ public class PlayerController : MonoBehaviour
             velocity.y = jumpForce;
         }
     }
-
 
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {

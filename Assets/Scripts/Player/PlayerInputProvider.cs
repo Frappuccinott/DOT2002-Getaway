@@ -8,17 +8,13 @@ public class PlayerInputProvider : MonoBehaviour
     {
         get
         {
-            if (actions == null)
-            {
-                actions = new PlayerInputActions();
-            }
+            if (actions == null) actions = new PlayerInputActions();
             return actions;
         }
     }
 
     private void Awake()
     {
-        // Awake boş kalabilir veya objeyi DDOL yapabilirsiniz, ancak lazy init yeterli.
         if (actions == null) actions = new PlayerInputActions();
     }
 

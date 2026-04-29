@@ -43,6 +43,17 @@ public partial class CarController
         int x = Screen.width - width - 20;
         int y = Screen.height - height - 20;
 
+        if (IsFlipped)
+        {
+            GUIStyle warningStyle = new GUIStyle(guiStyle);
+            warningStyle.fontSize = 24;
+            warningStyle.alignment = TextAnchor.MiddleCenter;
+            warningStyle.normal.textColor = Color.red;
+            
+            GUI.Box(new Rect(Screen.width / 2 - 200, Screen.height / 2 - 50, 400, 100), "");
+            GUI.Label(new Rect(Screen.width / 2 - 200, Screen.height / 2 - 50, 400, 100), "ARABA TERS DÖNDÜ!\nDÜZELTMEK İÇİN [B] YE BAS", warningStyle);
+        }
+
         GUI.Box(new Rect(x, y, width, height), "ARAÇ BİLGİ EKRANI");
 
         Color speedColor = displaySpeed > 180f ? Color.red : (displaySpeed > 100f ? Color.yellow : Color.green);

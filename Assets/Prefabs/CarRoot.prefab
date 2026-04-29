@@ -900,7 +900,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &1993333781635544442
 Transform:
   m_ObjectHideFlags: 0
@@ -4311,6 +4311,117 @@ MeshCollider:
   m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: 3847227355689484908, guid: d2775649b86de5243941107a64f31bcc, type: 3}
+--- !u!1 &3197235627411427194
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8198493386259932748}
+  - component: {fileID: 5119230517564752268}
+  - component: {fileID: 3241252663931745802}
+  - component: {fileID: 7074455679079574301}
+  m_Layer: 6
+  m_Name: Radio
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8198493386259932748
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3197235627411427194}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.000000059604645, y: 3.4924597e-10, z: -0.0034877677, w: -0.999994}
+  m_LocalPosition: {x: 0.8081733, y: -0.24103165, z: -0.50800014}
+  m_LocalScale: {x: 0.1324742, y: 0.08383009, z: 0.13509987}
+  m_ConstrainProportionsScale: 1
+  m_Children: []
+  m_Father: {fileID: 7163914484259885297}
+  m_LocalEulerAnglesHint: {x: -90, y: 0, z: 172.4}
+--- !u!33 &5119230517564752268
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3197235627411427194}
+  m_Mesh: {fileID: 4762477281045989054, guid: e2ed837cee930824897e6adc64ebd21d, type: 3}
+--- !u!23 &3241252663931745802
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3197235627411427194}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 9425e114bd23a90459bb2f1e457f45e8, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!65 &7074455679079574301
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3197235627411427194}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 7.05992, y: 2.8083625, z: 3.4741225}
+  m_Center: {x: -0.26773998, y: 0.6398151, z: -1.2013866}
 --- !u!1 &3217586997810827288
 GameObject:
   m_ObjectHideFlags: 0
@@ -4791,7 +4902,7 @@ MonoBehaviour:
   removePromptText: 'Remove [F]'
   linkedWheelCollider: {fileID: 0}
   previewColor: {r: 0, g: 1, b: 0, a: 0.35}
-  isPreInstalled: 1
+  isPreInstalled: 0
 --- !u!1 &3575360060323283171
 GameObject:
   m_ObjectHideFlags: 0
@@ -7720,6 +7831,7 @@ Transform:
   - {fileID: 1175768197459890881}
   - {fileID: 5918695209728310252}
   - {fileID: 3093404701424798930}
+  - {fileID: 7163914484259885297}
   m_Father: {fileID: 6692179989721248146}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6392511369338901164
@@ -9926,6 +10038,58 @@ Transform:
   - {fileID: 6692179989721248146}
   m_Father: {fileID: 9187629430840714352}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &7569436539161899001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7163914484259885297}
+  - component: {fileID: 2850536172417419124}
+  m_Layer: 0
+  m_Name: Slot_Radio
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7163914484259885297
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7569436539161899001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.1535, y: -0.7472, z: 0.144}
+  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 8198493386259932748}
+  m_Father: {fileID: 2441490588720894385}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2850536172417419124
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7569436539161899001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d87593da6803bce48bb86628ea2d09ef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarPartSlot
+  acceptedPartType: 24
+  partVisual: {fileID: 3197235627411427194}
+  installPromptText: 'Install [F]'
+  removePromptText: 'Remove [F]'
+  linkedWheelCollider: {fileID: 0}
+  previewColor: {r: 0, g: 1, b: 0, a: 0.35}
+  isPreInstalled: 0
 --- !u!1 &7592282144494139067
 GameObject:
   m_ObjectHideFlags: 0
@@ -10712,14 +10876,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 875f2bb044d40aa48a8512cc7d1812b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HingeDoor
-  doorType: 3
+  doorType: 5
   hingePoint: {fileID: 0}
   rotationAxis: {x: 0, y: 0, z: -1}
   minAngle: 0
   maxAngle: -140
   dragSensitivity: 0.5
   smoothSpeed: 10
-  invertDrag: 0
+  invertDrag: 1
   linkedSlot: {fileID: 0}
 --- !u!1 &8269949171476143811
 GameObject:

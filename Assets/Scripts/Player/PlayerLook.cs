@@ -24,6 +24,7 @@ public class PlayerLook : MonoBehaviour
     private float defaultFOV;
     private bool isZooming = false;
     private PlayerController playerController;
+    private float defaultCameraY;
 
     private void Awake()
     {
@@ -33,13 +34,9 @@ public class PlayerLook : MonoBehaviour
         {
             Camera cam = GetComponentInChildren<Camera>();
             if (cam != null)
-            {
                 cameraTransform = cam.transform;
-            }
             else
-            {
-                Debug.LogError("[PlayerLook] Kamera bulunamadı! Lütfen Inspector'dan atayın veya child olarak ekleyin.");
-            }
+                Debug.LogError("[PlayerLook] Kamera bulunamadı!");
         }
 
         if (cameraTransform != null)
@@ -48,13 +45,9 @@ public class PlayerLook : MonoBehaviour
             cinemachineCam = cameraTransform.GetComponent<CinemachineCamera>();
 
             if (playerCamera != null)
-            {
                 defaultFOV = playerCamera.fieldOfView;
-            }
             else if (cinemachineCam != null)
-            {
                 defaultFOV = cinemachineCam.Lens.FieldOfView;
-            }
         }
     }
 
@@ -81,7 +74,10 @@ public class PlayerLook : MonoBehaviour
         Cursor.visible = true;
     }
 
-
+    private void Start()
+    {
+        if (cameraTransform != null) defaultCameraY = cameraTransform.localPosition.y;
+    }
 
     private void LateUpdate()
     {
@@ -93,7 +89,7 @@ public class PlayerLook : MonoBehaviour
     private void HandleZoom()
     {
         float targetFOV = isZooming ? zoomFOV : defaultFOV;
-        
+
         if (playerCamera != null)
         {
             playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, targetFOV, zoomSpeed * Time.deltaTime);
@@ -106,47 +102,27 @@ public class PlayerLook : MonoBehaviour
         }
     }
 
-    private void OnZoomStarted(InputAction.CallbackContext context)
-    {
-        isZooming = true;
-    }
-
-    private void OnZoomCanceled(InputAction.CallbackContext context)
-    {
-        isZooming = false;
-    }
-
-    private float defaultCameraY;
-    
-    private void Start()
-    {
-        if (cameraTransform != null) defaultCameraY = cameraTransform.localPosition.y;
-    }
+    private void OnZoomStarted(InputAction.CallbackContext context) => isZooming = true;
+    private void OnZoomCanceled(InputAction.CallbackContext context) => isZooming = false;
 
     private void HandleCameraHeight()
     {
-        if (playerController != null && cameraTransform != null)
-        {
-            // Eğer koltuğa oturuyorsak kamerayı indirmemize gerek yok
-            if (isSnappingToSeat || playerController.IsSitting) return;
+        if (playerController == null || cameraTransform == null) return;
+        if (isSnappingToSeat || playerController.IsSitting) return;
 
-            // Karakter 2m'den 1m'ye düştüğü için kamera tam 1 birim aşağı inmeli.
-            float targetY = defaultCameraY - (playerController.CrouchRatio * 1.0f);
-            
-            Vector3 localPos = cameraTransform.localPosition;
-            localPos.y = Mathf.Lerp(localPos.y, targetY, 10f * Time.deltaTime);
-            cameraTransform.localPosition = localPos;
-        }
+        float targetY = defaultCameraY - (playerController.CrouchRatio * 1.0f);
+        Vector3 localPos = cameraTransform.localPosition;
+        localPos.y = Mathf.Lerp(localPos.y, targetY, 10f * Time.deltaTime);
+        cameraTransform.localPosition = localPos;
     }
 
     public void SnapToSeatLook(Transform seatPoint)
     {
         Vector3 flatForward = seatPoint.forward;
         flatForward.y = 0f;
-        if (flatForward.sqrMagnitude > 0.001f)
-            targetPlayerRotation = Quaternion.LookRotation(flatForward);
-        else
-            targetPlayerRotation = transform.rotation;
+        targetPlayerRotation = (flatForward.sqrMagnitude > 0.001f)
+            ? Quaternion.LookRotation(flatForward)
+            : transform.rotation;
 
         targetCameraRotation = Quaternion.Euler(0f, 0f, 0f);
         isSnappingToSeat = true;
@@ -155,12 +131,10 @@ public class PlayerLook : MonoBehaviour
     public void StopSnapping()
     {
         isSnappingToSeat = false;
-
         if (cameraTransform != null)
-        {
             cameraTransform.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);
-        }
     }
+
     private void HandleLook()
     {
         if (cameraTransform == null) return;
@@ -184,18 +158,14 @@ public class PlayerLook : MonoBehaviour
 
         if (playerController != null && playerController.IsSitting)
         {
-            // Arabada otururken: Karakterin gövdesini döndürme, sadece kafayı (kamerayı) olduğu yerde sağa/sola ve yukarı/aşağı çevir.
             verticalRotation -= lookInput.y * mouseSensitivity;
             verticalRotation = Mathf.Clamp(verticalRotation, -maxLookAngle, maxLookAngle);
-            
             float targetY = cameraTransform.localEulerAngles.y + horizontalRotation;
             cameraTransform.localRotation = Quaternion.Euler(verticalRotation, targetY, 0f);
         }
         else
         {
-            // Ayaktayken: Klasik FPS (Gövde sağa-sola, kafa aşağı-yukarı)
             transform.Rotate(Vector3.up * horizontalRotation);
-            
             verticalRotation -= lookInput.y * mouseSensitivity;
             verticalRotation = Mathf.Clamp(verticalRotation, -maxLookAngle, maxLookAngle);
             cameraTransform.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);

@@ -23,5 +23,6 @@ public enum CarPartType
     RearIron,
     FrontIron,
     FrontGrill,
-    FrontBumper
+    FrontBumper,
+    Radio
 }
