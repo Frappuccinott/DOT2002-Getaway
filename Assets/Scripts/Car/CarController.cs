@@ -221,7 +221,14 @@ public partial class CarController : MonoBehaviour
             Debug.Log("[DEV CHEAT] Araba parçaları ve depolar fullendi! Artık arabaya binip çalıştırabilirsiniz.");
         }
 
-        if (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame && IsFlipped)
+        bool wantsToFlip = false;
+        
+        InputAction flipAction = PlayerInputProvider.Actions?.asset?.FindAction("Player/Flip");
+        if (flipAction != null && flipAction.WasPressedThisFrame()) wantsToFlip = true;
+        
+        if (!wantsToFlip && Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame) wantsToFlip = true;
+
+        if (wantsToFlip && IsFlipped)
         {
             transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
             transform.position += Vector3.up * 1.5f;
