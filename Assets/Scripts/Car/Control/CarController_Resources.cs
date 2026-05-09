@@ -4,43 +4,45 @@ public partial class CarController
 {
     private void ConsumeResources(float speedKMH)
     {
-        float fuelDrainRate = 0.001f + (speedKMH * 0.0002f); 
-        float oilDrainRate = 0.0001f + (speedKMH * 0.00001f);
-        float waterDrainRate = 0.0002f + (speedKMH * 0.00005f);
+        if (carStartSystem == null) return;
 
-        if (carStartSystem != null && carStartSystem.IsRunning)
+        bool isRunning = carStartSystem.IsRunning;
+        bool hasBattery = carStartSystem.HasBattery;
+
+        if (isRunning)
         {
-            float deltaMutliplier = consumptionMultiplier * Time.deltaTime; // Called from FixedUpdate usually, but we keep Time.deltaTime or fixedDeltaTime
-            // Physics calls ConsumeResources from FixedUpdate. We should use Time.fixedDeltaTime instead.
-            deltaMutliplier = consumptionMultiplier * Time.fixedDeltaTime;
+            float dt = consumptionMultiplier * Time.fixedDeltaTime;
+            float fuelDrainRate = 0.001f + (speedKMH * 0.0002f);
+            float oilDrainRate = 0.0001f + (speedKMH * 0.00001f);
+            float waterDrainRate = 0.0002f + (speedKMH * 0.00005f);
 
-            carStartSystem.GetTank(FluidType.Gasoline)?.ConsumeFluid(fuelDrainRate * deltaMutliplier);
-            carStartSystem.GetTank(FluidType.MotorOil)?.ConsumeFluid(oilDrainRate * deltaMutliplier);
-            carStartSystem.GetTank(FluidType.Coolant)?.ConsumeFluid(waterDrainRate * deltaMutliplier);
-        }
-        
-        if (carStartSystem != null && carStartSystem.HasBattery && carStartSystem.IsRunning)
-        {
-            float batteryDrainRate = 0.005f + (areHeadlightsOn ? 0.05f : 0f);
-            currentBatteryPercent -= batteryDrainRate * consumptionMultiplier * Time.fixedDeltaTime;
-            currentBatteryPercent = Mathf.Max(0f, currentBatteryPercent);
+            carStartSystem.GetTank(FluidType.Gasoline)?.ConsumeFluid(fuelDrainRate * dt);
+            carStartSystem.GetTank(FluidType.MotorOil)?.ConsumeFluid(oilDrainRate * dt);
+            carStartSystem.GetTank(FluidType.Coolant)?.ConsumeFluid(waterDrainRate * dt);
+
+            if (hasBattery)
+            {
+                float batteryDrainRate = 0.005f + (areHeadlightsOn ? 0.05f : 0f);
+                currentBatteryPercent -= batteryDrainRate * consumptionMultiplier * Time.fixedDeltaTime;
+                currentBatteryPercent = Mathf.Max(0f, currentBatteryPercent);
+            }
         }
 
-        if (currentBatteryPercent <= 0f || (carStartSystem != null && !carStartSystem.HasBattery))
+        if (currentBatteryPercent <= 0f || !hasBattery)
         {
             if (areHeadlightsOn)
             {
                 areHeadlightsOn = false;
                 if (headlights != null)
                 {
-                    foreach (var light in headlights) 
-                    { 
-                        if (light != null) 
+                    foreach (var light in headlights)
+                    {
+                        if (light != null)
                         {
                             CarPartSlot slot = light.GetComponentInParent<CarPartSlot>(true);
                             if (slot != null && !slot.IsInstalled) continue;
-                            light.SetActive(areHeadlightsOn); 
-                        } 
+                            light.SetActive(false);
+                        }
                     }
                 }
             }
@@ -99,7 +101,7 @@ public partial class CarController
         }
         previousGear = displayGear;
 
-        if (displayGear == "N") 
+        if (displayGear == "N")
         {
             displayRPM = Mathf.Lerp(displayRPM, 800f + (acceleration != 0 ? 3000f : 0f), Time.fixedDeltaTime * 5f);
         }
@@ -124,7 +126,7 @@ public partial class CarController
             float ratio = Mathf.Clamp01((speedKMH - minSpeedForGear) / (maxSpeedForGear - minSpeedForGear));
             displayRPM = 1000f + (ratio * 5500f);
         }
-        
+
         if (acceleration == 0 && displayGear != "N")
         {
             displayRPM -= Time.fixedDeltaTime * 2000f;
@@ -136,16 +138,10 @@ public partial class CarController
     {
         if (displayGear == "R" || displayGear == "N") return;
 
-        bool isUpshift = false;
-        if (int.TryParse(displayGear, out int curG) && int.TryParse(previousGear, out int prevG))
-        {
-            isUpshift = curG > prevG;
-        }
-
-        if (isUpshift)
+        if (int.TryParse(displayGear, out int curG) && int.TryParse(previousGear, out int prevG) && curG > prevG)
         {
             float dynamicShiftDelay = displaySpeed > 70f ? gearShiftDelay * 0.2f : gearShiftDelay;
-            currentShiftTimer = dynamicShiftDelay; 
+            currentShiftTimer = dynamicShiftDelay;
             displayRPM *= 0.65f;
         }
     }
@@ -153,15 +149,16 @@ public partial class CarController
     private void UpdateWarningLights()
     {
         bool hasPower = currentBatteryPercent > 0f && (carStartSystem != null && carStartSystem.HasBattery);
+        bool engineRunning = carStartSystem != null && carStartSystem.IsRunning;
+        bool shouldLightsBeOn = hasPower && engineRunning;
 
-        SetWarningLight(fuelWarningLight, currentFuelLiters, fuelWarningThreshold, hasPower);
-        SetWarningLight(batteryWarningLight, currentBatteryPercent, batteryWarningThreshold, hasPower);
-        SetWarningLight(oilWarningLight, currentMotorOilLiters, oilWarningThreshold, hasPower);
-        SetWarningLight(waterWarningLight, currentCoolingWaterLiters, waterWarningThreshold, hasPower);
+        SetWarningLight(fuelWarningLight, currentFuelLiters, fuelWarningThreshold, shouldLightsBeOn);
+        SetWarningLight(batteryWarningLight, currentBatteryPercent, batteryWarningThreshold, shouldLightsBeOn);
+        SetWarningLight(oilWarningLight, currentMotorOilLiters, oilWarningThreshold, shouldLightsBeOn);
+        SetWarningLight(waterWarningLight, currentCoolingWaterLiters, waterWarningThreshold, shouldLightsBeOn);
 
         if (handbrakeLight != null)
         {
-            bool engineRunning = carStartSystem != null && carStartSystem.IsRunning;
             bool shouldBeOn = engineRunning && hasPower && isHandbrakeEngaged;
             if (handbrakeLight.activeSelf != shouldBeOn) handbrakeLight.SetActive(shouldBeOn);
         }

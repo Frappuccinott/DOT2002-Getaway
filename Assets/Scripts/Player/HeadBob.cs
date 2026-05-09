@@ -16,7 +16,6 @@ public class HeadBob : MonoBehaviour
 
     [Header("Genel Ayarlar")]
     [SerializeField] private float smoothTransition = 10f;
-    [SerializeField] private float crouchCameraOffset = 0.5f;
     [SerializeField] private float crouchCameraSmooth = 8f;
     [SerializeField] private PlayerController playerController;
 
@@ -31,9 +30,7 @@ public class HeadBob : MonoBehaviour
         {
             playerController = GetComponentInParent<PlayerController>();
             if (playerController == null)
-            {
-                Debug.LogError("[HeadBob] PlayerController bulunamadı! Lütfen Inspector'dan atayın veya parent objeye ekleyin.");
-            }
+                Debug.LogError("[HeadBob] PlayerController bulunamadı!");
         }
     }
 
@@ -41,18 +38,12 @@ public class HeadBob : MonoBehaviour
     {
         if (playerController == null) return;
 
-        HandleHeadBob();
-    }
-
-    private void HandleHeadBob()
-    {
-        float crouchOffset = playerController.CrouchRatio * -crouchCameraOffset;
+        float crouchOffset = playerController.CrouchRatio * -1.0f;
         float baseY = defaultYPosition + crouchOffset;
 
         if (playerController.IsGrounded && playerController.IsMoving)
         {
-            float bobSpeed;
-            float bobAmount;
+            float bobSpeed, bobAmount;
 
             if (playerController.IsCrouching)
             {
@@ -71,9 +62,8 @@ public class HeadBob : MonoBehaviour
             }
 
             bobTimer += Time.deltaTime * bobSpeed;
-            float bobOffset = Mathf.Sin(bobTimer) * bobAmount;
+            float targetY = baseY + Mathf.Sin(bobTimer) * bobAmount;
 
-            float targetY = baseY + bobOffset;
             Vector3 localPos = transform.localPosition;
             localPos.y = Mathf.Lerp(localPos.y, targetY, smoothTransition * Time.deltaTime);
             transform.localPosition = localPos;

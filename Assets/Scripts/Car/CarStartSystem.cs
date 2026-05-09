@@ -10,9 +10,9 @@ public class CarStartSystem : MonoBehaviour
     [SerializeField] private CarFluidTank[] fluidTanks;
 
     [Header("Minimum Fluid Requirements")]
-    [SerializeField] private float minimumFuel = 1f;
-    [SerializeField] private float minimumOil = 1f;
-    [SerializeField] private float minimumCoolant = 1f;
+    [SerializeField] private float minimumFuel = 0.1f;
+    [SerializeField] private float minimumOil = 0.1f;
+    [SerializeField] private float minimumCoolant = 0.1f;
 
     [Header("Kontrol Sıklığı")]
     [SerializeField] private float conditionCheckInterval = 0.5f;
@@ -103,9 +103,9 @@ public class CarStartSystem : MonoBehaviour
         float currentOil = oilTank != null ? oilTank.CurrentFluid : 0f;
         float currentCoolant = coolantTank != null ? coolantTank.CurrentFluid : 0f;
 
-        bool hasEnoughFuel = currentFuel >= minimumFuel;
-        bool hasEnoughOil = currentOil >= minimumOil;
-        bool hasEnoughCoolant = currentCoolant >= minimumCoolant;
+        bool hasEnoughFuel = isStartingAttempt ? (currentFuel >= minimumFuel) : (currentFuel > 0f);
+        bool hasEnoughOil = isStartingAttempt ? (currentOil >= minimumOil) : (currentOil > 0f);
+        bool hasEnoughCoolant = isStartingAttempt ? (currentCoolant >= minimumCoolant) : (currentCoolant > 0f);
 
         if (!HasBattery)
         {

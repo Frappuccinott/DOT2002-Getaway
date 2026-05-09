@@ -25,7 +25,7 @@ public partial class CarController
         if (frontRightWC.gameObject.activeInHierarchy && frontRightWC.enabled) frontRightWC.steerAngle = currentSteerAngle;
 
         float acceleration = moveInput.y;
-        bool isMovingForward = forwardDot > -0.5f;
+        bool isMovingForward = forwardDot > 0.1f;
         
         if (isHandbrakeEngaged)
         {
@@ -36,6 +36,9 @@ public partial class CarController
         }
         else
         {
+            SetBrakeTorque(rearLeftWC, 0f);
+            SetBrakeTorque(rearRightWC, 0f);
+
             if (isMovingForward && acceleration > 0 && speedKMH >= maxSpeedForward)
             {
                 SetMotorTorque(rearLeftWC, 0f);
@@ -55,20 +58,33 @@ public partial class CarController
             {
                 SetMotorTorque(rearLeftWC, 0f);
                 SetMotorTorque(rearRightWC, 0f);
-                SetBrakeTorque(rearLeftWC, brakeTorque * 0.5f);
-                SetBrakeTorque(rearRightWC, brakeTorque * 0.5f);
+                float appliedBrake = (moveInput.y < 0) ? brakeTorque : (brakeTorque * 0.5f);
+                SetBrakeTorque(rearLeftWC, appliedBrake);
+                SetBrakeTorque(rearRightWC, appliedBrake);
                 displayRPM = Mathf.Lerp(displayRPM, 0f, Time.fixedDeltaTime * 2f);
             }
             else
             {
                 SetMotorTorque(rearLeftWC, acceleration * motorTorque);
                 SetMotorTorque(rearRightWC, acceleration * motorTorque);
-            }
 
-            if (currentFuelLiters > 0f && currentBatteryPercent > 0f)
-            {
-                SetBrakeTorque(rearLeftWC, 0f);
-                SetBrakeTorque(rearRightWC, 0f);
+                bool isBraking = false;
+                if (speedKMH > 1f)
+                {
+                    if (isMovingForward && acceleration < 0) isBraking = true;
+                    if (!isMovingForward && acceleration > 0) isBraking = true;
+                }
+
+                if (isBraking)
+                {
+                    SetBrakeTorque(rearLeftWC, brakeTorque);
+                    SetBrakeTorque(rearRightWC, brakeTorque);
+                }
+                else
+                {
+                    SetBrakeTorque(rearLeftWC, 0f);
+                    SetBrakeTorque(rearRightWC, 0f);
+                }
             }
         }
 

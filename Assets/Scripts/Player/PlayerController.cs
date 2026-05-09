@@ -91,10 +91,11 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         playerLook = GetComponent<PlayerLook>();
 
-        defaultCenter = controller.center;
         defaultHeight = controller.height;
         standHeight = defaultHeight;
         targetHeight = standHeight;
+
+        if (rb != null) rb.isKinematic = true;
     }
 
     private void OnEnable()
@@ -104,22 +105,13 @@ public class PlayerController : MonoBehaviour
         inputActions.Player.Enable();
 
         inputActions.Player.Jump.performed += OnJump;
-        inputActions.Player.Sprint.started += OnSprintStarted;
-        inputActions.Player.Sprint.canceled += OnSprintCanceled;
-        inputActions.Player.Crouch.started += OnCrouchStarted;
-        inputActions.Player.Crouch.canceled += OnCrouchCanceled;
     }
 
     private void OnDisable()
     {
         if (inputActions == null) return;
         inputActions.Player.Jump.performed -= OnJump;
-        inputActions.Player.Sprint.started -= OnSprintStarted;
-        inputActions.Player.Sprint.canceled -= OnSprintCanceled;
-        inputActions.Player.Crouch.started -= OnCrouchStarted;
-        inputActions.Player.Crouch.canceled -= OnCrouchCanceled;
     }
-
 
     private void Update()
     {
@@ -132,6 +124,23 @@ public class PlayerController : MonoBehaviour
         {
             HandleStandUpLerp();
             return;
+        }
+
+        if (inputActions != null)
+        {
+            isSprinting = inputActions.Player.Sprint.IsPressed();
+            
+            bool crouchInput = inputActions.Player.Crouch.IsPressed();
+            if (crouchInput && !isCrouching)
+            {
+                isCrouching = true;
+                targetHeight = crouchHeight;
+            }
+            else if (!crouchInput && isCrouching)
+            {
+                isCrouching = false;
+                targetHeight = standHeight;
+            }
         }
 
         HandleMovement();
@@ -205,8 +214,6 @@ public class PlayerController : MonoBehaviour
             
             foreach (var col in allColliders) col.enabled = true;
             
-            if (rb != null) rb.isKinematic = false;
-            
             controller.enabled = true;
         }
     }
@@ -262,29 +269,6 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void OnSprintStarted(InputAction.CallbackContext context)
-    {
-        isSprinting = true;
-    }
-
-    private void OnSprintCanceled(InputAction.CallbackContext context)
-    {
-        isSprinting = false;
-    }
-
-    private void OnCrouchStarted(InputAction.CallbackContext context)
-    {
-        if (isSitting) return;
-        isCrouching = true;
-        targetHeight = crouchHeight;
-    }
-
-    private void OnCrouchCanceled(InputAction.CallbackContext context)
-    {
-        isCrouching = false;
-        targetHeight = standHeight;
-    }
-
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
         HingeDoor door = hit.collider.GetComponentInParent<HingeDoor>();
@@ -299,14 +283,12 @@ public class PlayerController : MonoBehaviour
             PickupableCarPart part = hit.collider.GetComponentInParent<PickupableCarPart>();
             FluidContainer fluid = hit.collider.GetComponentInParent<FluidContainer>();
             
-            // Sadece araba parçalarını ve bidonları ayakla itebilelim
             if (part != null || fluid != null)
             {
-                // Yere basma açısını yoksay (sadece yatay kuvvet uygula ki ezilmesin)
                 if (hit.moveDirection.y < -0.3f) return;
 
                 Vector3 pushDir = new Vector3(hit.moveDirection.x, 0, hit.moveDirection.z);
-                body.linearVelocity = pushDir * 3f; // Hafifçe savur
+                body.linearVelocity = pushDir * 3f; 
             }
         }
     }

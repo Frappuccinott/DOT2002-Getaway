@@ -156,6 +156,8 @@ public partial class CarController : MonoBehaviour
     public bool IsHandbrakeEngaged => isHandbrakeEngaged;
     public bool AreHeadlightsOn => areHeadlightsOn;
     public string DisplayGear => displayGear;
+    
+    public bool IsFlipped => Vector3.Dot(transform.up, Vector3.up) < 0.2f && rb != null && rb.linearVelocity.magnitude < 1f;
 
     public event Action<bool> OnHandbrakeToggled;
     public event Action<bool> OnHeadlightsToggled;
@@ -210,10 +212,8 @@ public partial class CarController : MonoBehaviour
         guiSmallStyle.fontStyle = FontStyle.Normal;
     }
 
-
     private void Update()
     {
-        // DEV CHEAT: Cursor kilitli olduğu için F12 tuşuna atandı!
         if (Keyboard.current != null && Keyboard.current.f12Key.wasPressedThisFrame)
         {
             if (carStartSystem != null) carStartSystem.DevQuickStart();
@@ -221,10 +221,29 @@ public partial class CarController : MonoBehaviour
             Debug.Log("[DEV CHEAT] Araba parçaları ve depolar fullendi! Artık arabaya binip çalıştırabilirsiniz.");
         }
 
-        bool isShiftPressed = Keyboard.current != null && Keyboard.current.shiftKey.isPressed;
+        bool wantsToFlip = false;
+        
+        InputAction flipAction = PlayerInputProvider.Actions?.asset?.FindAction("Player/Flip");
+        if (flipAction != null && flipAction.WasPressedThisFrame()) wantsToFlip = true;
+        
+        if (!wantsToFlip && Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame) wantsToFlip = true;
+
+        if (wantsToFlip && IsFlipped)
+        {
+            transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+            transform.position += Vector3.up * 1.5f;
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+        }
+
+        bool isShiftPressed = false;
 
         if (isHandsOnWheel)
         {
+            isShiftPressed = Keyboard.current != null && Keyboard.current.shiftKey.isPressed;
             if (moveAction != null) moveInput = moveAction.ReadValue<Vector2>();
 
             if (carStartSystem != null)

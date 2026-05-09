@@ -234,7 +234,6 @@ MonoBehaviour:
   crouchBobSpeed: 6
   crouchBobAmount: 0.015
   smoothTransition: 10
-  crouchCameraOffset: 0.5
   crouchCameraSmooth: 8
   playerController: {fileID: 3301654280847123753}
 --- !u!114 &5858164502097468703
