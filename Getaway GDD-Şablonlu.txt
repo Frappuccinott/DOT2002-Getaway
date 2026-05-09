@@ -1,0 +1,65 @@
+Oyun Tasarým Dökümaný (GDD) 
+ 
+ 1. Oyunun Adý
+       Getaway
+
+2. Konsept özeti
+Hapishaneden kaçtýktan sonra evine ulaþmak için bulduðun hurda arabanýn eksik parçalarýný toplayýp yol boyunca ilerleyerek aracý tamir ettiðin bir macera oyunu
+
+3. Tür ve Platform
+
+Tür: 3D Açýk Dünya Hayatta Kalma
+Platform: PC
+
+4. Hedef Kitle
+Macera hissini, hayatta kalma oyunlarýný, araba sürmeyi ve araç tamir etmeyi sevenler 
+
+5. Oyunu Geliþtirenler
+Mehmet emin çoban 24351028026
+Arda Oktar 24351028002
+Yiðit Aydýn 24351028010
+Muhammed Burak Özbek 24351028018
+Arda Özgür Kaya 24351028009
+
+
+
+
+
+Mekanikler ve Oynanýþ
+
+1. Temel döngü
+
+1.1 Bölüme baþla
+1.2 Araca bin ve aracý çalýþtýr
+1.3 Yol boyunca keþif yap ve aracýn eksik/bozuk parçalarýný deðiþtir/tamir et
+1.4 Eve ulaþana kadar yola devam et
+
+2. Kontroller- Yaya
+WASD- Hareket etme 
+F- Parça etkileþim
+E- Nesne etkileþim
+LMB- Sürükleme, Kapý açma
+Shift- Koþma
+Ctrl- Eðilme
+Q- Zoom
+
+Kontroller / Araba
+W- Gaz
+S- Fren
+A- Sola direksiyon çevirme
+D- Saða direksiyon çevirme
+Space- El freni
+Shift- Debriyaj
+Q – Zoom
+
+3. Kazanma veya Kaybetme Koþularý
+Kazanma: Aracý tamir edip sað salim eve ulaþmak
+Kaybetme: Aracý tamir etmeyi baþaramama sonucu yolda kalma ve eve ulaþamamak
+
+Görsel ve Ýþitsel Sanat
+Görsel Tarz ( Art Style) Doðanýn renkleriyle bezenmiþ, 3D Low Poly, içinde bulunulan biyoma göre renk paletini deðiþtiren bir yapýya sahip
+Müzik ve Ses Efektleri: Biyoma göre deðiþen özel oyun müzikleri, araç parçalarýný yansýtan ses efektleri, marþ motoru, motor, egzoz sesi gibi.
+
+Hikaye ve Karakterler
+Ana Karakter: Bob,eski tamirci, mahkum. Eski giysileri ve hurda bir arabasý var.
+Hikaye Özeti: Bob, hapishaneden evine dönme hayaliyle kaçar ve kendini yollara verir. Eski bir tamirci olan Bob, yol kenarýnda bulduðu hurda arabayý diðer hurda parçalar ile çalýþtýrmayý baþarýr ve arabasýyla yollara düþer. Arabasýný çalýþýr durumda tutmak ve eve dönebilmek için benzin ve yedek parça avlayan Bob’un yýlmaz azmini hiçbir þey kýramaz.

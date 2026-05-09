@@ -1,0 +1,28 @@
+public enum CarPartType
+{
+    FrontFenderLeft,
+    FrontFenderRight,
+    FrontDoorLeft,
+    FrontDoorRight,
+    RearDoorLeft,
+    RearDoorRight,
+    SteeringWheel,
+    Seat,
+    Engine,
+    Battery,
+    Trunk,
+    RearBumper,
+    Hood,
+    FuelTank,
+    Wheel,
+    Radiator,
+    FrontLightLeft,
+    FrontLightRight,
+    RearLightLeft,
+    RearLightRight,
+    RearIron,
+    FrontIron,
+    FrontGrill,
+    FrontBumper,
+    Radio
+}
