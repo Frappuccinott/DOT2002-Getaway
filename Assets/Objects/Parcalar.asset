@@ -1,0 +1,85 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb20b6e588c3a94438916334d677e799, type: 3}
+  m_Name: Parcalar
+  m_EditorClassIdentifier: Assembly-CSharp::StructureLootTable
+  parts:
+  - partName: 
+    prefab: {fileID: 0}
+    spawnWeight: 1
+    maxPerStructure: 0
+  - partName: Kapi_Sol
+    prefab: {fileID: 7157519222099071979, guid: e12f19ec861c802439093758fec31003, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 2
+  - partName: Kapi_Sag
+    prefab: {fileID: 6852357595362878, guid: 2cf78aca504fe3447ae3de618691ffd1, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 2
+  - partName: Motor
+    prefab: {fileID: 9093580989615608184, guid: c60dafb7ff410244e828870c396993cb, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 1
+  - partName: On_Tampon
+    prefab: {fileID: 3631212410307725899, guid: f5541bd609beb4f4eafcd5269d1591a9, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 1
+  - partName: Sol_Lamba
+    prefab: {fileID: 3154475630932712402, guid: d29c3244d27269448a601d34d15ff338, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 3
+  - partName: Sag_Lamba
+    prefab: {fileID: 7026595588129414584, guid: 3cbf330bb32a5fe418018bdc06b8017d, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 3
+  - partName: On_Izgara
+    prefab: {fileID: 5821746743184439953, guid: 420eb0eea744956408229edef1f7aa21, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 2
+  - partName: On_Demir
+    prefab: {fileID: 7408017315160791039, guid: 5dbafae08abec634c9c857a9c8ad7097, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 2
+  - partName: Kaput
+    prefab: {fileID: 1061303086297369650, guid: 07842ab5128e66a4f882f215fed12d24, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 1
+  - partName: Radyator
+    prefab: {fileID: 4201010938043134308, guid: 0507d501b9a518f46b9229e9c5af19f9, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 1
+  - partName: Arka_Sol_Lamba
+    prefab: {fileID: 3891488423861209226, guid: 25e62c1d3a01fc14b97b4e0c2b25ed1f, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 3
+  - partName: Arka_Sag_Lamba
+    prefab: {fileID: 3196971805761515739, guid: 6af3c82594f89be4e906e3fd8adce75d, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 3
+  - partName: Arka_Demir
+    prefab: {fileID: 4866295961360212931, guid: 1ec98dea74ed79e44be5eb9ce66d2214, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 2
+  - partName: Bagaj
+    prefab: {fileID: 1773617749599636053, guid: 4073cb43798dc7b4ca01cdc2a35ef3a1, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 1
+  - partName: Tekerlek
+    prefab: {fileID: 3030156271415556722, guid: fd2c7abdbcfc600499447ed93c4eab14, type: 3}
+    spawnWeight: 0
+    maxPerStructure: 2
+  minPartsPerStructure: 0
+  maxPartsPerStructure: 3
+  spawnRadius: 8
+  dropHeight: 0.5
+  randomPartRotation: 1
+  partScaleRange: {x: 0.9, y: 1.1}

@@ -7,9 +7,15 @@ public class CarAudioSystem : MonoBehaviour
     [Header("--- Mixer ---")]
     [SerializeField] private AudioMixerGroup sfxGroup;
 
-    [Header("--- Motor Sesleri (Loop) ---")]
-    [SerializeField] private AudioClip engineIdleClip;
-    [SerializeField] private AudioClip engineLoadClip;
+    [Header("--- Motor Sesleri (Loop - FMOD Style) ---")]
+    [SerializeField] private AudioClip idleClip;
+    [SerializeField] private AudioClip lowOffClip;
+    [SerializeField] private AudioClip lowOnClip;
+    [SerializeField] private AudioClip medOffClip;
+    [SerializeField] private AudioClip medOnClip;
+    [SerializeField] private AudioClip highOffClip;
+    [SerializeField] private AudioClip highOnClip;
+    [SerializeField] private AudioClip maxRpmClip;
 
     [Header("--- Motor One-Shot ---")]
     [SerializeField] private AudioClip starterCrankClip;
@@ -27,14 +33,12 @@ public class CarAudioSystem : MonoBehaviour
     [SerializeField] private AudioClip windLoopClip;
     [SerializeField] private AudioClip tireLoopClip;
 
-    [Header("--- Motor Ses Ayarları ---")]
-    [SerializeField] private float idleMaxVolume = 0.6f;
-    [SerializeField] private float idleMinVolume = 0.05f;
-    [SerializeField] private float idleMinPitch = 0.95f;
-    [SerializeField] private float idleMaxPitch = 1.15f;
-    [SerializeField] private float loadMaxVolume = 0.8f;
-    [SerializeField] private float loadMinPitch = 0.6f;
-    [SerializeField] private float loadMaxPitch = 1.4f;
+    [Header("--- Motor Ses Crossfade Ayarları ---")]
+    [SerializeField] private float lowRpmThreshold = 1800f;
+    [SerializeField] private float medRpmThreshold = 3500f;
+    [SerializeField] private float highRpmThreshold = 5500f;
+    [SerializeField] private float maxRpmThreshold = 7000f;
+    [SerializeField] private float throttleFadeSpeed = 5f;
     [SerializeField] private float engineFadeSpeed = 5f;
 
     [Header("--- Çevre Ses Ayarları ---")]
@@ -53,8 +57,15 @@ public class CarAudioSystem : MonoBehaviour
     private CarController carController;
     private CarStartSystem carStartSystem;
 
-    private AudioSource engineIdleSource;
-    private AudioSource engineLoadSource;
+    private AudioSource idleSource;
+    private AudioSource lowOffSource;
+    private AudioSource lowOnSource;
+    private AudioSource medOffSource;
+    private AudioSource medOnSource;
+    private AudioSource highOffSource;
+    private AudioSource highOnSource;
+    private AudioSource maxRpmSource;
+    
     private AudioSource windSource;
     private AudioSource tireSource;
     private AudioSource hornSource;
@@ -62,8 +73,6 @@ public class CarAudioSystem : MonoBehaviour
 
     private InputAction hornAction;
     private bool wasHornPressed;
-    private float targetIdleVolume;
-    private float targetLoadVolume;
     private bool engineAudioActive;
 
     private void Awake()
@@ -74,8 +83,15 @@ public class CarAudioSystem : MonoBehaviour
         carStartSystem = GetComponentInParent<CarStartSystem>();
         if (carStartSystem == null) carStartSystem = GetComponentInChildren<CarStartSystem>();
 
-        engineIdleSource = CreateSource("EngineIdle", true, 1f);
-        engineLoadSource = CreateSource("EngineLoad", true, 1f);
+        idleSource = CreateSource("EngineIdle", true, 1f);
+        lowOffSource = CreateSource("EngineLowOff", true, 1f);
+        lowOnSource = CreateSource("EngineLowOn", true, 1f);
+        medOffSource = CreateSource("EngineMedOff", true, 1f);
+        medOnSource = CreateSource("EngineMedOn", true, 1f);
+        highOffSource = CreateSource("EngineHighOff", true, 1f);
+        highOnSource = CreateSource("EngineHighOn", true, 1f);
+        maxRpmSource = CreateSource("EngineMaxRPM", true, 1f);
+        
         windSource = CreateSource("Wind", true, 0f);
         tireSource = CreateSource("Tire", true, 0f);
         hornSource = CreateSource("Horn", true, 0f);
@@ -142,24 +158,83 @@ public class CarAudioSystem : MonoBehaviour
         if (isRunning)
         {
             float rpm = carController.DisplayRPM;
-            float rpmNorm = Mathf.Clamp01((rpm - 800f) / 5700f);
+            float throttle = Mathf.Clamp01(carController.ThrottleInput);
 
-            targetIdleVolume = Mathf.Lerp(idleMaxVolume, idleMinVolume, rpmNorm);
-            targetLoadVolume = Mathf.Lerp(0f, loadMaxVolume, rpmNorm);
+            float idleWeight = 0f, lowWeight = 0f, medWeight = 0f, highWeight = 0f, maxWeight = 0f;
 
-            engineIdleSource.pitch = Mathf.Lerp(idleMinPitch, idleMaxPitch, rpmNorm);
-            engineLoadSource.pitch = Mathf.Lerp(loadMinPitch, loadMaxPitch, rpmNorm);
+            if (rpm < lowRpmThreshold)
+            {
+                float t = Mathf.InverseLerp(800f, lowRpmThreshold, rpm);
+                idleWeight = 1f - t;
+                lowWeight = t;
+            }
+            else if (rpm < medRpmThreshold)
+            {
+                float t = Mathf.InverseLerp(lowRpmThreshold, medRpmThreshold, rpm);
+                lowWeight = 1f - t;
+                medWeight = t;
+            }
+            else if (rpm < highRpmThreshold)
+            {
+                float t = Mathf.InverseLerp(medRpmThreshold, highRpmThreshold, rpm);
+                medWeight = 1f - t;
+                highWeight = t;
+            }
+            else if (rpm < maxRpmThreshold)
+            {
+                float t = Mathf.InverseLerp(highRpmThreshold, maxRpmThreshold, rpm);
+                highWeight = 1f - t;
+                maxWeight = t;
+            }
+            else
+            {
+                maxWeight = 1f;
+            }
+
+            float onWeight = throttle;
+            float offWeight = 1f - throttle;
+
+            float dt = Time.deltaTime;
+            
+            idleSource.volume = Mathf.MoveTowards(idleSource.volume, idleWeight, engineFadeSpeed * dt);
+            
+            lowOnSource.volume = Mathf.MoveTowards(lowOnSource.volume, lowWeight * onWeight, throttleFadeSpeed * dt);
+            lowOffSource.volume = Mathf.MoveTowards(lowOffSource.volume, lowWeight * offWeight, throttleFadeSpeed * dt);
+            
+            medOnSource.volume = Mathf.MoveTowards(medOnSource.volume, medWeight * onWeight, throttleFadeSpeed * dt);
+            medOffSource.volume = Mathf.MoveTowards(medOffSource.volume, medWeight * offWeight, throttleFadeSpeed * dt);
+            
+            highOnSource.volume = Mathf.MoveTowards(highOnSource.volume, highWeight * onWeight, throttleFadeSpeed * dt);
+            highOffSource.volume = Mathf.MoveTowards(highOffSource.volume, highWeight * offWeight, throttleFadeSpeed * dt);
+            
+            maxRpmSource.volume = Mathf.MoveTowards(maxRpmSource.volume, maxWeight, engineFadeSpeed * dt);
+
+            float rpmNorm = Mathf.Clamp01((rpm - 800f) / maxRpmThreshold);
+            float basePitch = Mathf.Lerp(0.8f, 1.4f, rpmNorm);
+            
+            idleSource.pitch = basePitch;
+            lowOnSource.pitch = basePitch;
+            lowOffSource.pitch = basePitch;
+            medOnSource.pitch = basePitch;
+            medOffSource.pitch = basePitch;
+            highOnSource.pitch = basePitch;
+            highOffSource.pitch = basePitch;
+            maxRpmSource.pitch = basePitch;
         }
         else
         {
-            targetIdleVolume = 0f;
-            targetLoadVolume = 0f;
+            float dt = Time.deltaTime;
+            idleSource.volume = Mathf.MoveTowards(idleSource.volume, 0f, engineFadeSpeed * dt);
+            lowOnSource.volume = Mathf.MoveTowards(lowOnSource.volume, 0f, engineFadeSpeed * dt);
+            lowOffSource.volume = Mathf.MoveTowards(lowOffSource.volume, 0f, engineFadeSpeed * dt);
+            medOnSource.volume = Mathf.MoveTowards(medOnSource.volume, 0f, engineFadeSpeed * dt);
+            medOffSource.volume = Mathf.MoveTowards(medOffSource.volume, 0f, engineFadeSpeed * dt);
+            highOnSource.volume = Mathf.MoveTowards(highOnSource.volume, 0f, engineFadeSpeed * dt);
+            highOffSource.volume = Mathf.MoveTowards(highOffSource.volume, 0f, engineFadeSpeed * dt);
+            maxRpmSource.volume = Mathf.MoveTowards(maxRpmSource.volume, 0f, engineFadeSpeed * dt);
         }
 
-        engineIdleSource.volume = Mathf.MoveTowards(engineIdleSource.volume, targetIdleVolume, engineFadeSpeed * Time.deltaTime);
-        engineLoadSource.volume = Mathf.MoveTowards(engineLoadSource.volume, targetLoadVolume, engineFadeSpeed * Time.deltaTime);
-
-        if (!isRunning && engineAudioActive && engineIdleSource.volume < 0.01f)
+        if (!isRunning && engineAudioActive && idleSource.volume < 0.01f && lowOnSource.volume < 0.01f)
         {
             StopEngineLoops();
             engineAudioActive = false;
@@ -186,8 +261,7 @@ public class CarAudioSystem : MonoBehaviour
 
         if (tireLoopClip != null)
         {
-            bool isRunning = carStartSystem != null && carStartSystem.IsRunning;
-            if (speed > tireStartSpeed && isRunning)
+            if (speed > tireStartSpeed)
             {
                 if (!tireSource.isPlaying) { tireSource.clip = tireLoopClip; tireSource.Play(); }
                 float tireNorm = Mathf.Clamp01((speed - tireStartSpeed) / 100f);
@@ -203,19 +277,21 @@ public class CarAudioSystem : MonoBehaviour
 
     private void UpdateHorn()
     {
-        if (hornAction == null || hornClip == null || !carController.isHandsOnWheel) return;
+        if (hornAction == null || hornClip == null) return;
 
-        bool isHornPressed = hornAction.ReadValue<float>() > 0.5f;
+        bool isHornPressed = hornAction.ReadValue<float>() > 0.5f && carController.isHandsOnWheel;
 
         if (isHornPressed && !wasHornPressed)
         {
             hornSource.clip = hornClip;
             hornSource.volume = hornVolume;
             hornSource.Play();
+            Debug.Log("[CarAudioSystem] Horn started playing.");
         }
         else if (!isHornPressed && wasHornPressed)
         {
             hornSource.Stop();
+            Debug.Log("[CarAudioSystem] Horn stopped playing.");
         }
 
         wasHornPressed = isHornPressed;
@@ -223,6 +299,7 @@ public class CarAudioSystem : MonoBehaviour
 
     private void HandleStartAttempt(CarStartResult result)
     {
+        Debug.Log($"[CarAudioSystem] Start attempt result: {result}");
         if (result == CarStartResult.Started)
         {
             PlayOneShot(engineStartClip);
@@ -231,55 +308,82 @@ public class CarAudioSystem : MonoBehaviour
         {
             PlayOneShot(starterCrankClip);
         }
+        else if (result == CarStartResult.NoBattery)
+        {
+            Debug.Log("[CarAudioSystem] No battery, no sound played for start attempt.");
+        }
     }
 
     private void HandleEngineStopped()
     {
+        Debug.Log("[CarAudioSystem] Engine stopped.");
         PlayOneShot(engineStopClip);
     }
 
     private void HandleHandbrake(bool engaged)
     {
+        Debug.Log($"[CarAudioSystem] Handbrake toggled: {(engaged ? "Engaged" : "Released")}");
         PlayOneShot(engaged ? handbrakeUpClip : handbrakeDownClip);
     }
 
     private void HandleHeadlights(bool on)
     {
+        Debug.Log($"[CarAudioSystem] Headlights toggled: {(on ? "On" : "Off")}");
         PlayOneShot(headlightSwitchClip);
     }
 
     private void HandleGearShift()
     {
+        Debug.Log("[CarAudioSystem] Gear shifted.");
         PlayOneShot(gearShiftClip);
     }
 
     private void StartEngineLoops()
     {
-        if (engineIdleClip != null && !engineIdleSource.isPlaying)
-        {
-            engineIdleSource.clip = engineIdleClip;
-            engineIdleSource.volume = 0f;
-            engineIdleSource.Play();
-        }
+        Debug.Log("[CarAudioSystem] Starting engine audio loops.");
+        PlayLoop(idleSource, idleClip);
+        PlayLoop(lowOffSource, lowOffClip);
+        PlayLoop(lowOnSource, lowOnClip);
+        PlayLoop(medOffSource, medOffClip);
+        PlayLoop(medOnSource, medOnClip);
+        PlayLoop(highOffSource, highOffClip);
+        PlayLoop(highOnSource, highOnClip);
+        PlayLoop(maxRpmSource, maxRpmClip);
+    }
 
-        if (engineLoadClip != null && !engineLoadSource.isPlaying)
+    private void PlayLoop(AudioSource src, AudioClip clip)
+    {
+        if (clip != null && !src.isPlaying)
         {
-            engineLoadSource.clip = engineLoadClip;
-            engineLoadSource.volume = 0f;
-            engineLoadSource.Play();
+            src.clip = clip;
+            src.volume = 0f;
+            src.Play();
         }
     }
 
     private void StopEngineLoops()
     {
-        engineIdleSource.Stop();
-        engineLoadSource.Stop();
+        Debug.Log("[CarAudioSystem] Stopping engine audio loops.");
+        idleSource.Stop();
+        lowOffSource.Stop();
+        lowOnSource.Stop();
+        medOffSource.Stop();
+        medOnSource.Stop();
+        highOffSource.Stop();
+        highOnSource.Stop();
+        maxRpmSource.Stop();
     }
 
     private void PlayOneShot(AudioClip clip)
     {
         if (clip != null && oneShotSource != null)
+        {
             oneShotSource.PlayOneShot(clip, oneShotVolume);
+        }
+        else if (clip == null)
+        {
+            Debug.LogWarning("[CarAudioSystem] Cannot play one-shot sound: AudioClip is missing (null)!");
+        }
     }
 
     private AudioSource CreateSource(string label, bool loop, float spatialBlend)

@@ -276,7 +276,7 @@ MonoBehaviour:
     DefaultMode: 2
   DefaultBlend:
     Style: 1
-    Time: 2
+    Time: 0.1
     CustomCurve:
       serializedVersion: 2
       m_Curve: []
@@ -301,9 +301,10 @@ GameObject:
   - component: {fileID: 7175010572990504834}
   - component: {fileID: 5557290226012549539}
   - component: {fileID: 4489509211825279443}
+  - component: {fileID: 9032049939854096325}
   m_Layer: 0
   m_Name: Character
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -520,3 +521,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::InteractionTooltipUI
   fluidInfoText: {fileID: 0}
   interactionPromptText: {fileID: 0}
+--- !u!114 &9032049939854096325
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5695431803253321050}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29fcd26ad5747ba4b8b98e8670f51088, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
+  maxHealth: 100
+  healthText: {fileID: 0}
+  healthyColor: {r: 1, g: 1, b: 1, a: 1}
+  criticalColor: {r: 1, g: 0, b: 0, a: 1}
+  stunDuration: 0.8

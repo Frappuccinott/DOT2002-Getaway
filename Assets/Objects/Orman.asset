@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aac5563409913224f803dc2fabc5dff1, type: 3}
+  m_Name: Orman
+  m_EditorClassIdentifier: Assembly-CSharp::BiomeDefinition
+  biomeName: Orman
+  terrainLayer: {fileID: 8574412962073106934, guid: 4c53ce2248c65f1428ec874a59689d5d, type: 2}
+  heightMultiplier: 1
+  noiseFrequency: 0.01
+  groundObjects:
+  - {fileID: 7991040658419678974, guid: b2b9bf23afe7a674785a7e1f3152251d, type: 3}
+  - {fileID: 1417301712669136616, guid: a19ac34e169c8f741a43f036719d5d03, type: 3}
+  - {fileID: 8881786734136769601, guid: 0716110bd929f4648a9bd82751c5fe56, type: 3}
+  - {fileID: 1493958779012120596, guid: b9de24523a11d714db3851b5f0f9d527, type: 3}
+  groundObjectCount: 30
+  rockObjects:
+  - {fileID: 8114600924028484287, guid: e66cb15f22a1c774387d321ee47d271a, type: 3}
+  - {fileID: 709606190661600513, guid: df560bbcfede49047adbb80ade3598b5, type: 3}
+  - {fileID: 4016154500641946441, guid: 5058420d97eab5b4bbeb3541905be3e8, type: 3}
+  - {fileID: 8072579558294446686, guid: 2b35c1b656e276c449ef0cab9cb5ba19, type: 3}
+  - {fileID: 6322247231731170682, guid: 1f55f8c68246dc3438b73700695ee09b, type: 3}
+  - {fileID: 7201392123690039573, guid: dee0601b8b1bac346ab72f3479d757b4, type: 3}
+  - {fileID: 8029621735008801587, guid: 01791b7de4fff774d955e258a9dd3927, type: 3}
+  - {fileID: 3900363789541130965, guid: d11dad93fbd94a049a0595ea4c9ad857, type: 3}
+  - {fileID: 6750436648276775098, guid: 003d83dca6d86274fb16c4b28f62a7b8, type: 3}
+  - {fileID: 4522919313419691925, guid: 97410b42f813e3d429db68b74b5b280c, type: 3}
+  - {fileID: 3234177246766064207, guid: 4156a41c251169448b64d397066c8d84, type: 3}
+  - {fileID: 5576042616611465762, guid: da9a046a16e74164d884cd392ffc7e87, type: 3}
+  - {fileID: 9045279011583707593, guid: c7fe83c52eb617d45bd0f368d30248fa, type: 3}
+  - {fileID: 4034967733092172569, guid: 772e8fad8b9861742b6573f19f0fe458, type: 3}
+  - {fileID: 1562160437629610023, guid: f85cce94b83995543bb47db1f041c082, type: 3}
+  rockObjectCount: 150
+  treeObjects:
+  - {fileID: 9186843202093887721, guid: 9abd134f2e677934b88ac60971a43981, type: 3}
+  - {fileID: 4768404654763453764, guid: e8332517bdac4d3469b433f322124e50, type: 3}
+  - {fileID: 7332352054354905506, guid: 88093423cf258d64fbbab745bb91dd6f, type: 3}
+  - {fileID: 2511638525298630771, guid: 15973293e5d4f4c43b264c205be59b5c, type: 3}
+  - {fileID: 2570135536112903743, guid: cb0a24110a297cb4d8fcbcefcc318f43, type: 3}
+  treeObjectCount: 100
+  structureObjects:
+  - {fileID: 2243453120008785934, guid: 92eebeb28ae381845a4cefea6ccd0eef, type: 3}
+  - {fileID: 6709022004906254980, guid: 3ab5314d43428514299b046c9b4df467, type: 3}
+  - {fileID: 654077775306181083, guid: 32df4de8f5ab6634d965fe22fa34e167, type: 3}
+  - {fileID: 775658051173719472, guid: 114001140baa5b447915c4ebe850e060, type: 3}
+  structureCount: 3
+  structureMinRoadDistance: 30
+  structureMaxRoadDistance: 120
+  scaleRange: {x: 0.8, y: 1.2}
+  randomRotation: 1

@@ -16,6 +16,11 @@ public class CarCameraManager : MonoBehaviour
     [SerializeField] private float fpsFovScale = 0.5f;
     [SerializeField] private float hoodFovScale = 0.8f;
 
+    [Header("Scroll & TPS Zoom")]
+    [SerializeField] private float scrollZoomSpeed = 0.01f;
+    [SerializeField] private float minTpsDistance = 2.5f;
+    [SerializeField] private float maxTpsDistance = 12f;
+
     private CarController carController;
     private int currentCamIndex = 0;
     private bool wasDriving = false;
@@ -24,6 +29,11 @@ public class CarCameraManager : MonoBehaviour
     private CinemachineCamera[] cameras;
     private float[] baseFOVs;
     private float[] fovScales;
+
+    // TPS Zoom references
+    private CinemachineThirdPersonFollow tpsFollow;
+    private CinemachineOrbitalFollow orbitalFollow;
+    private float currentTpsDistance = 5f;
 
     private void Awake()
     {
@@ -54,6 +64,16 @@ public class CarCameraManager : MonoBehaviour
             if (cameras[i] != null)
                 baseFOVs[i] = cameras[i].Lens.FieldOfView;
         }
+
+        // Initialize Zoom Components
+        if (thirdPersonCam != null)
+        {
+            tpsFollow = thirdPersonCam.GetComponent<CinemachineThirdPersonFollow>();
+            orbitalFollow = thirdPersonCam.GetComponent<CinemachineOrbitalFollow>();
+
+            if (tpsFollow != null) currentTpsDistance = tpsFollow.CameraDistance;
+            else if (orbitalFollow != null) currentTpsDistance = orbitalFollow.Radius;
+        }
     }
 
     private void Update()
@@ -77,6 +97,7 @@ public class CarCameraManager : MonoBehaviour
                 UpdateTargetCamera();
             }
 
+            HandleMouseScrollZoom();
             ApplyAdaptiveFOV();
         }
         else if (wasDriving)
@@ -87,6 +108,49 @@ public class CarCameraManager : MonoBehaviour
         }
 
         wasDriving = isDriving;
+    }
+
+    private void HandleMouseScrollZoom()
+    {
+        if (Mouse.current == null) return;
+        
+        float scroll = Mouse.current.scroll.ReadValue().y;
+        if (Mathf.Abs(scroll) < 0.1f) return;
+
+        // FPS (0) -> Scroll out (scroll < 0) -> Switch to TPS (1)
+        if (currentCamIndex == 0 && scroll < 0f)
+        {
+            currentCamIndex = 1;
+            currentTpsDistance = minTpsDistance;
+            ApplyDistanceToTps();
+            UpdateTargetCamera();
+        }
+        // TPS (1) -> Zoom logic
+        else if (currentCamIndex == 1)
+        {
+            // Input System scroll delta is usually 120 or -120 per notch.
+            currentTpsDistance -= scroll * scrollZoomSpeed;
+
+            if (currentTpsDistance <= minTpsDistance)
+            {
+                currentTpsDistance = minTpsDistance;
+                // Switch back to FPS
+                currentCamIndex = 0;
+                UpdateTargetCamera();
+            }
+            else if (currentTpsDistance > maxTpsDistance)
+            {
+                currentTpsDistance = maxTpsDistance;
+            }
+
+            ApplyDistanceToTps();
+        }
+    }
+
+    private void ApplyDistanceToTps()
+    {
+        if (tpsFollow != null) tpsFollow.CameraDistance = currentTpsDistance;
+        else if (orbitalFollow != null) orbitalFollow.Radius = currentTpsDistance;
     }
 
     private void UpdateTargetCamera()
