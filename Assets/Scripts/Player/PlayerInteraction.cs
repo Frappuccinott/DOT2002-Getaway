@@ -788,6 +788,11 @@ public class PlayerInteraction : MonoBehaviour
     private void SetLayerRecursively(GameObject obj, int newLayer)
     {
         if (obj == null) return;
+        if (newLayer < 0 || newLayer > 31)
+        {
+            Debug.LogWarning($"[PlayerInteraction] Geçersiz layer değeri: {newLayer}. Layer bulunamadı! Unity'de 'Interactable' adında bir layer tanımlayın.");
+            return;
+        }
         obj.layer = newLayer;
         foreach (Transform child in obj.transform)
         {

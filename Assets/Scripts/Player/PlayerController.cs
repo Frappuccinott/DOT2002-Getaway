@@ -32,6 +32,9 @@ public class PlayerController : MonoBehaviour
     private Rigidbody rb;
     private PlayerLook playerLook;
 
+    // Sersemletme (stun) kontrolü için PlayerHealth referansı
+    private PlayerHealth playerHealth;
+
     private Vector3 velocity;
     private Vector2 currentMoveInput;
     private Vector2 smoothMoveVelocity;
@@ -90,6 +93,7 @@ public class PlayerController : MonoBehaviour
         allColliders = GetComponents<Collider>();
         rb = GetComponent<Rigidbody>();
         playerLook = GetComponent<PlayerLook>();
+        playerHealth = GetComponent<PlayerHealth>();
 
         defaultHeight = controller.height;
         standHeight = defaultHeight;
@@ -123,6 +127,18 @@ public class PlayerController : MonoBehaviour
         else if (isStandingUp)
         {
             HandleStandUpLerp();
+            return;
+        }
+
+        // ===== SERSEMLETMEn (STUN) KONTROLÜ =====
+        // Oyuncu sersemletilmişse hareket inputunu sıfırla,
+        // sadece yerçekimi uygulanmaya devam etsin.
+        if (playerHealth != null && playerHealth.isStunned)
+        {
+            currentMoveInput = Vector2.zero;
+            smoothedMoveInput = Vector2.zero;
+            HandleGravity();
+            controller.Move(new Vector3(0f, velocity.y, 0f) * Time.deltaTime);
             return;
         }
 

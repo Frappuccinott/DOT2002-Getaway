@@ -3140,6 +3140,10 @@ GameObject:
   m_Component:
   - component: {fileID: 7835366030359418388}
   - component: {fileID: 4069687377073931230}
+  - component: {fileID: 7775956953583224945}
+  - component: {fileID: 1862674836176614583}
+  - component: {fileID: 2337138777301018153}
+  - component: {fileID: 484812141378507390}
   m_Layer: 0
   m_Name: vCam_ThirdPerson
   m_TagString: Untagged
@@ -3182,7 +3186,7 @@ MonoBehaviour:
   m_StreamingVersion: 20241001
   m_LegacyPriority: 0
   Target:
-    TrackingTarget: {fileID: 0}
+    TrackingTarget: {fileID: 9187629430840714352}
     LookAtTarget: {fileID: 0}
     CustomLookAtTarget: 0
   Lens:
@@ -3205,6 +3209,180 @@ MonoBehaviour:
       BarrelClipping: 0.25
       Anamorphism: 0
   BlendHint: 0
+--- !u!114 &7775956953583224945
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2459203166853329656}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b5d7c088409d9a40b7b09aa707777f8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineOrbitalFollow
+  TargetOffset: {x: 0, y: 0, z: 0}
+  TrackerSettings:
+    BindingMode: 4
+    PositionDamping: {x: 0.1, y: 0.1, z: 0.1}
+    AngularDampingMode: 0
+    RotationDamping: {x: 1, y: 1, z: 1}
+    QuaternionDamping: 1
+  OrbitStyle: 0
+  Radius: 8
+  Orbits:
+    Top:
+      Radius: 2
+      Height: 5
+    Center:
+      Radius: 4
+      Height: 2.25
+    Bottom:
+      Radius: 2.5
+      Height: 0.1
+    SplineCurvature: 0.5
+  RecenteringTarget: 2
+  HorizontalAxis:
+    Value: 0
+    Center: 0
+    Range: {x: -180, y: 180}
+    Wrap: 1
+    Recentering:
+      Enabled: 0
+      Wait: 1
+      Time: 2
+    Restrictions: 0
+  VerticalAxis:
+    Value: 17.5
+    Center: 17.5
+    Range: {x: -10, y: 45}
+    Wrap: 0
+    Recentering:
+      Enabled: 0
+      Wait: 1
+      Time: 2
+    Restrictions: 0
+  RadialAxis:
+    Value: 1
+    Center: 1
+    Range: {x: 1, y: 1}
+    Wrap: 0
+    Recentering:
+      Enabled: 0
+      Wait: 1
+      Time: 2
+    Restrictions: 0
+--- !u!114 &1862674836176614583
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2459203166853329656}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f38bda98361e1de48a4ca2bd86ea3c17, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineRotationComposer
+  Composition:
+    ScreenPosition: {x: 0, y: 0}
+    DeadZone:
+      Enabled: 0
+      Size: {x: 0.2, y: 0.2}
+    HardLimits:
+      Enabled: 0
+      Size: {x: 0.8, y: 0.8}
+      Offset: {x: 0, y: 0}
+  CenterOnActivate: 1
+  TargetOffset: {x: 0, y: 0, z: 0}
+  Damping: {x: 0.5, y: 0.5}
+  Lookahead:
+    Enabled: 0
+    Time: 0
+    Smoothing: 0
+    IgnoreY: 0
+--- !u!114 &2337138777301018153
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2459203166853329656}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89875cdc57c54474a8a74efd9b2a3b5d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineInputAxisController
+  ScanRecursively: 1
+  SuppressInputWhileBlending: 1
+  IgnoreTimeScale: 0
+  m_ControllerManager:
+    Controllers:
+    - Name: Look Orbit X
+      Owner: {fileID: 7775956953583224945}
+      Enabled: 1
+      Input:
+        InputAction: {fileID: -5630151704836100654, guid: 1d6e640e716dc4ff6989b73d02023f2b, type: 3}
+        Gain: 1
+        CancelDeltaTime: 0
+      InputValue: 0
+      Driver:
+        AccelTime: 0.2
+        DecelTime: 0.2
+    - Name: Look Orbit Y
+      Owner: {fileID: 7775956953583224945}
+      Enabled: 1
+      Input:
+        InputAction: {fileID: -5630151704836100654, guid: 1d6e640e716dc4ff6989b73d02023f2b, type: 3}
+        Gain: -1
+        CancelDeltaTime: 0
+      InputValue: 0
+      Driver:
+        AccelTime: 0.2
+        DecelTime: 0.2
+    - Name: Orbit Scale
+      Owner: {fileID: 7775956953583224945}
+      Enabled: 1
+      Input:
+        InputAction: {fileID: 5082991133974614888, guid: 1d6e640e716dc4ff6989b73d02023f2b, type: 3}
+        Gain: -1
+        CancelDeltaTime: 0
+      InputValue: 0
+      Driver:
+        AccelTime: 0
+        DecelTime: 0
+  PlayerIndex: -1
+  AutoEnableInputs: 1
+--- !u!114 &484812141378507390
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2459203166853329656}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca7de3aefa901374ba29464584a3109a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineDecollider
+  CameraRadius: 0.4
+  Decollision:
+    Enabled: 0
+    ObstacleLayers:
+      serializedVersion: 2
+      m_Bits: 1
+    UseFollowTarget:
+      Enabled: 0
+      YOffset: 0
+    Damping: 0.5
+    SmoothingTime: 0
+  TerrainResolution:
+    Enabled: 1
+    TerrainLayers:
+      serializedVersion: 2
+      m_Bits: 1
+    MaximumRaycast: 10
+    Damping: 0.5
 --- !u!1 &2501664901756246894
 GameObject:
   m_ObjectHideFlags: 0
@@ -4209,7 +4387,6 @@ GameObject:
   - component: {fileID: 5250108567604929431}
   - component: {fileID: 6487099874607551570}
   - component: {fileID: 7569503106695827285}
-  - component: {fileID: 1499425786089542977}
   m_Layer: 6
   m_Name: Front_Light_L
   m_TagString: Untagged
@@ -4289,28 +4466,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &1499425786089542977
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3188345700680633246}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 1
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 3847227355689484908, guid: d2775649b86de5243941107a64f31bcc, type: 3}
 --- !u!1 &3197235627411427194
 GameObject:
   m_ObjectHideFlags: 0
@@ -5646,7 +5801,6 @@ GameObject:
   - component: {fileID: 2770392141484432571}
   - component: {fileID: 4807086888893843611}
   - component: {fileID: 5040675720836811933}
-  - component: {fileID: 8867393989832847472}
   m_Layer: 0
   m_Name: Rear_Light_R
   m_TagString: Untagged
@@ -5726,28 +5880,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &8867393989832847472
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4944922287789108375}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 1
-  m_CookingOptions: 30
-  m_Mesh: {fileID: -726615902861497983, guid: d2775649b86de5243941107a64f31bcc, type: 3}
 --- !u!1 &5022413218852148261
 GameObject:
   m_ObjectHideFlags: 0
@@ -5759,7 +5891,6 @@ GameObject:
   - component: {fileID: 5782094555551559174}
   - component: {fileID: 6170019011835568308}
   - component: {fileID: 4629779696640372938}
-  - component: {fileID: 7609953099772275073}
   m_Layer: 6
   m_Name: FrontGrill
   m_TagString: Untagged
@@ -5838,28 +5969,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &7609953099772275073
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5022413218852148261}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 1
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 8045524935736299623, guid: d2775649b86de5243941107a64f31bcc, type: 3}
 --- !u!1 &5107052662970358685
 GameObject:
   m_ObjectHideFlags: 0
@@ -7845,7 +7954,6 @@ GameObject:
   - component: {fileID: 4758051489862138052}
   - component: {fileID: 180576606547945913}
   - component: {fileID: 8468954400301008196}
-  - component: {fileID: 1632762807226010258}
   m_Layer: 6
   m_Name: Front_Light_R
   m_TagString: Untagged
@@ -7925,28 +8033,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &1632762807226010258
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6392511369338901164}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 1
-  m_CookingOptions: 30
-  m_Mesh: {fileID: -1654535464945270114, guid: d2775649b86de5243941107a64f31bcc, type: 3}
 --- !u!1 &6393338789403770456
 GameObject:
   m_ObjectHideFlags: 0
@@ -9388,9 +9474,10 @@ GameObject:
   - component: {fileID: 2511271322306194130}
   - component: {fileID: 6178714484573349938}
   - component: {fileID: 694681437202072522}
+  - component: {fileID: 8720423787276513960}
   m_Layer: 0
   m_Name: CarRoot
-  m_TagString: Untagged
+  m_TagString: Car
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -9814,25 +9901,29 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarAudioSystem
   sfxGroup: {fileID: -7519240505081551094, guid: e8bb83b13c9fb7d47bc9d138634a849c, type: 2}
-  engineIdleClip: {fileID: 0}
-  engineLoadClip: {fileID: 0}
-  starterCrankClip: {fileID: 0}
-  engineStartClip: {fileID: 0}
-  engineStopClip: {fileID: 0}
-  handbrakeUpClip: {fileID: 0}
-  handbrakeDownClip: {fileID: 0}
-  headlightSwitchClip: {fileID: 0}
-  gearShiftClip: {fileID: 0}
-  hornClip: {fileID: 0}
-  windLoopClip: {fileID: 0}
-  tireLoopClip: {fileID: 0}
-  idleMaxVolume: 0.6
-  idleMinVolume: 0.05
-  idleMinPitch: 0.95
-  idleMaxPitch: 1.15
-  loadMaxVolume: 0.8
-  loadMinPitch: 0.6
-  loadMaxPitch: 1.4
+  idleClip: {fileID: 8300000, guid: f19203f0923d08f4287c644a1b55d205, type: 3}
+  lowOffClip: {fileID: 8300000, guid: 91cea1ef6b2a66e46b7e0c4083dbca4e, type: 3}
+  lowOnClip: {fileID: 8300000, guid: 3b1734661591e2b4f9a41d5057c7fff3, type: 3}
+  medOffClip: {fileID: 8300000, guid: ec6858dbe984e3646af33a59d891ccf0, type: 3}
+  medOnClip: {fileID: 8300000, guid: aaddb94424c9c014a9e4b2df9ad95200, type: 3}
+  highOffClip: {fileID: 8300000, guid: ca9bb92cbb5f705499b316408b1c5987, type: 3}
+  highOnClip: {fileID: 8300000, guid: 97f33b29e5f805743bc11efa28169255, type: 3}
+  maxRpmClip: {fileID: 8300000, guid: b3b74f98d88aa4d4e9fd42b7589c46be, type: 3}
+  starterCrankClip: {fileID: 8300000, guid: 1cf020c286d1e3a4d98cb74da5a9c16d, type: 3}
+  engineStartClip: {fileID: 8300000, guid: 99077207653a74846877ef5dc69cc8f0, type: 3}
+  engineStopClip: {fileID: 8300000, guid: 06ee6f84d922a314a98e74a18a7dc15e, type: 3}
+  handbrakeUpClip: {fileID: 8300000, guid: 0997558bd52b89f4c93703f54675429a, type: 3}
+  handbrakeDownClip: {fileID: 8300000, guid: 9ec0a7d1568093047acf9c2d156c49ed, type: 3}
+  headlightSwitchClip: {fileID: 8300000, guid: ff31001d9d22e1e49a9fcc75afab5b19, type: 3}
+  gearShiftClip: {fileID: 8300000, guid: 699316da3ffe4c247ae20f109d2391cb, type: 3}
+  hornClip: {fileID: 8300000, guid: 70879ecc5ac51c44380ffb1f7468ea64, type: 3}
+  windLoopClip: {fileID: 8300000, guid: d68b2eae6fba57a4b8fe549d1fd10dc9, type: 3}
+  tireLoopClip: {fileID: 8300000, guid: b3917c830d0f73f4aaf24835272c27b6, type: 3}
+  lowRpmThreshold: 1800
+  medRpmThreshold: 3500
+  highRpmThreshold: 5500
+  maxRpmThreshold: 7000
+  throttleFadeSpeed: 5
   engineFadeSpeed: 5
   windMaxVolume: 0.4
   windStartSpeed: 20
@@ -9863,6 +9954,46 @@ MonoBehaviour:
   fovLerpSpeed: 5
   fpsFovScale: 0.5
   hoodFovScale: 0.8
+  scrollZoomSpeed: 0.01
+  minTpsDistance: 2.5
+  maxTpsDistance: 12
+--- !u!114 &8720423787276513960
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7379393131322486863}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 322fe6d36cfdcac478946cb1e375293c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarCrashManager
+  inSafeZone: 0
+  minCrashSpeed: 30
+  maxCrashSpeed: 60
+  minDetachCount: 1
+  maxDetachCount: 4
+  detachForce: 500
+  explosionRadius: 3
+  upwardsModifier: 0.5
+  detachTorque: 200
+  detachCooldown: 0.5
+  detachableSlots:
+  - {fileID: 1673241655731374062}
+  - {fileID: 3224205204689821075}
+  - {fileID: 2133779329363499061}
+  - {fileID: 1789903955314406817}
+  - {fileID: 4761574768208660513}
+  - {fileID: 8800341982494904125}
+  - {fileID: 3253212495359625254}
+  - {fileID: 8539287845920682763}
+  - {fileID: 1360615414101942022}
+  - {fileID: 7480863281225823415}
+  - {fileID: 420748293313021066}
+  - {fileID: 6505308425369149255}
+  - {fileID: 8960148179569726694}
+  - {fileID: 4657992897044712447}
 --- !u!1 &7384503236210069140
 GameObject:
   m_ObjectHideFlags: 0
@@ -11547,7 +11678,6 @@ GameObject:
   - component: {fileID: 1846159165963872831}
   - component: {fileID: 5802305960269883505}
   - component: {fileID: 507441676843471624}
-  - component: {fileID: 4897088270535466233}
   m_Layer: 0
   m_Name: Rear_Light_L
   m_TagString: Untagged
@@ -11627,28 +11757,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &4897088270535466233
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8604171118817930515}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 1
-  m_CookingOptions: 30
-  m_Mesh: {fileID: -6420045740323293544, guid: d2775649b86de5243941107a64f31bcc, type: 3}
 --- !u!1 &8736637119912534639
 GameObject:
   m_ObjectHideFlags: 0

@@ -153,6 +153,7 @@ public partial class CarController : MonoBehaviour
 
     public float DisplayRPM => displayRPM;
     public float DisplaySpeed => displaySpeed;
+    public float ThrottleInput => moveInput.y;
     public bool IsHandbrakeEngaged => isHandbrakeEngaged;
     public bool AreHeadlightsOn => areHeadlightsOn;
     public string DisplayGear => displayGear;
@@ -182,6 +183,7 @@ public partial class CarController : MonoBehaviour
     private bool lastCachedHasBattery;
     private float lastCachedOil = -1f;
     private float lastCachedWater = -1f;
+    private float flipCooldownTimer = 0f;
 
     private void Awake()
     {
@@ -221,21 +223,24 @@ public partial class CarController : MonoBehaviour
             Debug.Log("[DEV CHEAT] Araba parçaları ve depolar fullendi! Artık arabaya binip çalıştırabilirsiniz.");
         }
 
+        if (flipCooldownTimer > 0f) flipCooldownTimer -= Time.deltaTime;
+
         bool wantsToFlip = false;
         
         InputAction flipAction = PlayerInputProvider.Actions?.asset?.FindAction("Player/Flip");
         if (flipAction != null && flipAction.WasPressedThisFrame()) wantsToFlip = true;
         
-        if (!wantsToFlip && Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame) wantsToFlip = true;
-
-        if (wantsToFlip && IsFlipped)
+        if (wantsToFlip && flipCooldownTimer <= 0f)
         {
-            transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
-            transform.position += Vector3.up * 1.5f;
-            if (rb != null)
+            // Araba tamamen durmuşsa (hız < 1) ve devrilmişse
+            if (rb != null && rb.linearVelocity.magnitude < 1f && IsFlipped)
             {
+                transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+                transform.position += Vector3.up * 1.5f;
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
+                
+                flipCooldownTimer = 2f; // Üst üste basılıp uçmasını engellemek için bekleme süresi
             }
         }
 
