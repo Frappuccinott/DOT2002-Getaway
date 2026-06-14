@@ -129,6 +129,48 @@ public class RoadGenerator : MonoBehaviour
         }
     }
 
+    public System.Collections.IEnumerator GenerateRoadMaskForChunkCoroutine(float chunkWorldX, float chunkWorldZ, int chunkSize,
+        System.Action<float[,], float[,]> onComplete)
+    {
+        int res = roadMaskResolution;
+        float[,] roadMask = new float[res, res];
+        float[,] elevationMask = new float[res, res];
+
+        float halfRoad = roadWidth * 0.5f;
+        float totalWidth = halfRoad + shoulderWidth * elevationFalloff;
+
+        for (int z = 0; z < res; z++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                float normX = (float)x / (res - 1);
+                float normZ = (float)z / (res - 1);
+
+                float worldX = chunkWorldX + normX * chunkSize;
+                float worldZ = chunkWorldZ + normZ * chunkSize;
+
+                float roadCenterX = GetRoadCenterX(worldZ);
+                float distFromRoad = Mathf.Abs(worldX - roadCenterX);
+
+                if (distFromRoad <= halfRoad)
+                {
+                    roadMask[z, x] = 1f;
+                    elevationMask[z, x] = 1f;
+                }
+                else if (distFromRoad <= totalWidth)
+                {
+                    float t = (distFromRoad - halfRoad) / (totalWidth - halfRoad);
+                    float falloff = 1f - t * t;
+                    elevationMask[z, x] = Mathf.Max(0f, falloff);
+                }
+            }
+
+            if (z % 32 == 0) yield return null;
+        }
+
+        onComplete?.Invoke(roadMask, elevationMask);
+    }
+
     public void GenerateChunkStripe(TerrainChunk chunk, int chunkSize)
     {
         float chunkWorldX = chunk.coord.x * chunkSize;

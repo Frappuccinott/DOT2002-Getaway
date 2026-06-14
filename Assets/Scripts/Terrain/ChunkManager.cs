@@ -245,8 +245,22 @@ public class ChunkManager : MonoBehaviour
         navMeshSurface.collectObjects = CollectObjects.Children;
         navMeshSurface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
         
-        navMeshSurface.BuildNavMesh();
-        yield return null;
+        // Asynchronous NavMesh generation workaround
+        var buildSources = new List<NavMeshBuildSource>();
+        var markups = new List<NavMeshBuildMarkup>();
+        NavMeshBuilder.CollectSources(chunkObj.transform, navMeshSurface.layerMask, navMeshSurface.useGeometry, navMeshSurface.defaultArea, markups, buildSources);
+        
+        var bounds = new Bounds(chunkObj.transform.position, new Vector3(chunkSize * 2, 1000, chunkSize * 2));
+        var buildSettings = navMeshSurface.GetBuildSettings();
+        
+        NavMeshData navMeshData = new NavMeshData(navMeshSurface.agentTypeID);
+        AsyncOperation asyncOp = NavMeshBuilder.UpdateNavMeshDataAsync(navMeshData, buildSettings, buildSources, bounds);
+        
+        yield return asyncOp;
+        
+        navMeshSurface.navMeshData = navMeshData;
+        navMeshSurface.enabled = false;
+        navMeshSurface.enabled = true;
 
         SetNeighbors(coord);
     }

@@ -15,6 +15,10 @@ public class SettlePhysics : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         if (rb == null) { Destroy(this); return; }
+        
+        // As ObjectPlacer already raycasts to the ground perfectly, 
+        // there is no need for slow physics settling which kills FPS.
+        Settle();
     }
 
     private void Update()

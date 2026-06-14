@@ -62,24 +62,30 @@ public class MapGenerator : MonoBehaviour
         float chunkWorldX = chunk.coord.x * chunkSize;
         float chunkWorldZ = chunk.coord.y * chunkSize;
 
-        roadGen.GenerateRoadMaskForChunk(chunkWorldX, chunkWorldZ, chunkSize,
-            out float[,] roadMask, out float[,] elevationMask);
-        yield return null;
+        float[,] roadMask = null;
+        float[,] elevationMask = null;
+        yield return StartCoroutine(roadGen.GenerateRoadMaskForChunkCoroutine(chunkWorldX, chunkWorldZ, chunkSize, (r, e) => {
+            roadMask = r;
+            elevationMask = e;
+        }));
 
         BiomeDefinition[,] biomeMap = biomeManager.GenerateChunkBiomeMap(
             chunkWorldX, chunkWorldZ, chunkSize, biomeResolution, biomes, roadGen);
         yield return null;
 
-        terrainGen.GenerateChunkHeightmap(chunk, chunkSize, roadMask, elevationMask,
-            roadGen.elevationOffset, biomeMap, biomeResolution);
-        yield return null;
+        yield return StartCoroutine(terrainGen.GenerateChunkHeightmapCoroutine(chunk, chunkSize, roadMask, elevationMask,
+            roadGen.elevationOffset, biomeMap, biomeResolution));
 
-        biomeManager.PaintChunkSplatmap(chunk, biomeMap, biomes, roadMask, roadGen.roadLayer);
-        yield return null;
+        yield return StartCoroutine(biomeManager.PaintChunkSplatmapCoroutine(chunk, biomeMap, biomes, roadMask, roadGen.roadLayer));
 
         yield return StartCoroutine(objectPlacer.PlaceChunkObjectsCoroutine(chunk, chunkSize, biomes, biomeMap, roadMask, roadGen));
 
         roadGen.GenerateChunkStripe(chunk, chunkSize);
+
+        if (chunk.objectsParent != null)
+        {
+            StaticBatchingUtility.Combine(chunk.objectsParent);
+        }
     }
 
     public void GenerateChunk(TerrainChunk chunk, int chunkSize)

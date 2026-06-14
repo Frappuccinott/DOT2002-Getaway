@@ -209,20 +209,34 @@ public class ZombieAI : MonoBehaviour
                     "Inspector'dan manuel atayın veya kemik adını kontrol edin.");
             }
         }
+
+        if (playerTransform == null)
+        {
+            GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+            if (playerObj != null)
+            {
+                playerTransform = playerObj.transform;
+            }
+            else if (Camera.main != null)
+            {
+                playerTransform = Camera.main.transform;
+            }
+        }
+
+        if (carTransform == null)
+        {
+            GameObject carObj = GameObject.FindGameObjectWithTag("Car");
+            if (carObj != null)
+            {
+                carTransform = carObj.transform;
+            }
+        }
     }
 
     private void Start()
     {
-        // Canı maksimuma ayarla
         currentHealth = maxHealth;
-
-        // Başlangıç durumu
         currentState = ZombieState.Idle;
-
-        // ===== ANA COLLIDER'I TRIGGER YAP =====
-        // CapsuleCollider trigger olarak ayarlanır — araba fiziksel olarak
-        // zombinin içinden geçer, "duvara çarpmış gibi" sekmez.
-        // Araba algılama OnTriggerEnter üzerinden yapılır.
         if (mainCollider != null)
         {
             mainCollider.isTrigger = true;
@@ -231,13 +245,10 @@ public class ZombieAI : MonoBehaviour
 
     private void Update()
     {
-        // Ölüyse hiçbir şey yapma
         if (isDead) return;
 
-        // NavMesh üzerinde değilse hiçbir şey yapma
         if (!agent.isOnNavMesh) return;
 
-        // Mevcut duruma göre davranış belirle
         switch (currentState)
         {
             case ZombieState.Idle:
@@ -251,31 +262,17 @@ public class ZombieAI : MonoBehaviour
                 break;
         }
 
-        // Animator hız parametresini güncelle
         UpdateAnimatorSpeed();
     }
 
-    // ================================================================
-    //                      DURUM FONKSİYONLARI
-    // ================================================================
-
-    /// <summary>
-    /// IDLE — Zombi yerinde durur, hedefe olan mesafeyi kontrol eder.
-    /// Hedef algılama menzilinde ise Chase durumuna geçer.
-    /// </summary>
     private void State_Idle()
     {
-        // Hedef algılama menzilinde mi?
         if (IsTargetInDetectionRange())
         {
             TransitionToState(ZombieState.Chase);
         }
     }
 
-    /// <summary>
-    /// CHASE — Zombi hedefe doğru koşar.
-    /// Hedef saldırı menzilindeyse Attack'a, kaybetme mesafesinin dışındaysa Idle'a geçer.
-    /// </summary>
     private void State_Chase()
     {
         Transform target = GetCurrentTarget();
