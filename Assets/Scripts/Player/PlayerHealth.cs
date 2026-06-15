@@ -3,6 +3,33 @@ using UnityEngine.SceneManagement;
 using System.Collections;
 using TMPro;
 
+/// <summary>
+/// Oyuncu Can, UI ve Sersemletme (Stagger/Stun) Sistemi.
+///
+/// - Oyuncunun canını takip eder ve gösterge tablosu formatında UI'da gösterir.
+/// - Hasar alındığında kısa süreli sersemletme (stun) uygular.
+/// - Can sıfıra düştüğünde sahneyi yeniden başlatır.
+///
+/// ZombieAI.OnAttackHit() tarafından TakeDamage() çağrılarak hasar alınır.
+///
+/// ============================================================
+///   DİĞER SCRİPTLERLE ENTEGRASYON REHBERİ (Stun Mekaniği):
+/// ============================================================
+///   Oyuncunun hareket ettiği script (ör. PlayerController) içinde,
+///   hareket işleminden ÖNCE bu scriptteki 'isStunned' değişkenini
+///   kontrol etmelisiniz. Örnek kullanım:
+///
+///   PlayerHealth playerHealth = GetComponent<PlayerHealth>();
+///   if (playerHealth != null && playerHealth.isStunned)
+///   {
+///       // Oyuncu sersemletilmiş durumda — hareketi engelle
+///       return;
+///   }
+///
+///   Bu kontrol, HandleMovement() veya Update() içinde
+///   hareket kodu çalışmadan önce yapılmalıdır.
+/// ============================================================
+/// </summary>
 public class PlayerHealth : MonoBehaviour
 {
     // ==================== CAN AYARLARI ====================
@@ -253,6 +280,8 @@ public class PlayerHealth : MonoBehaviour
             activeStunCoroutine = null;
         }
 
+        Debug.Log("[PlayerHealth] Oyuncu öldü! GameManager üzerinden ölüm paneli çağrılıyor...");
+
         // Sahneyi direkt yeniden yüklemek yerine GameManager'ın ölüm sürecini başlat
         if (GameManager.Instance != null)
         {
@@ -260,6 +289,7 @@ public class PlayerHealth : MonoBehaviour
         }
         else
         {
+            Debug.LogWarning("[PlayerHealth] GameManager bulunamadı! Yedek olarak sahne yeniden başlatılıyor.");
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
     }

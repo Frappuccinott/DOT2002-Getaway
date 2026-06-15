@@ -153,6 +153,7 @@ public class SettingsManager : MonoBehaviour
 
     public void SetRadioMusicVolume(float volume)
     {
+        Debug.Log("[SettingsManager] SetRadioMusicVolume tetiklendi. Gelen değer: " + volume);
         PlayerPrefs.SetFloat("RadioMusic", volume);
         PlayerPrefs.Save();
         
@@ -160,6 +161,11 @@ public class SettingsManager : MonoBehaviour
         {
             float db = Mathf.Log10(Mathf.Max(0.0001f, volume)) * 20f;
             audioMixer.SetFloat("RadioMusic", db);
+            Debug.Log("[SettingsManager] AudioMixer'a uygulanan dB: " + db);
+        }
+        else
+        {
+            Debug.LogWarning("[SettingsManager] AudioMixer atanmamış!");
         }
     }
 
