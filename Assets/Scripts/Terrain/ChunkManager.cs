@@ -7,7 +7,7 @@ public class ChunkManager : MonoBehaviour
 {
     [Header("Chunk Settings")]
     public int chunkSize = 250;
-    public int viewDistance = 2;
+    public float viewDistance = 1.5f;
     public float checkInterval = 0.5f;
 
     [Header("References")]
@@ -86,11 +86,13 @@ public class ChunkManager : MonoBehaviour
         Vector2Int playerChunk = GetPlayerChunkCoord();
 
         HashSet<Vector2Int> neededChunks = new HashSet<Vector2Int>();
-        for (int z = -viewDistance; z <= viewDistance; z++)
+        int viewDistInt = Mathf.CeilToInt(viewDistance);
+        
+        for (int z = -viewDistInt; z <= viewDistInt; z++)
         {
-            for (int x = -viewDistance; x <= viewDistance; x++)
+            for (int x = -viewDistInt; x <= viewDistInt; x++)
             {
-                if (Mathf.RoundToInt(Mathf.Sqrt(x * x + z * z)) <= viewDistance)
+                if (Mathf.Sqrt(x * x + z * z) <= viewDistance)
                     neededChunks.Add(new Vector2Int(playerChunk.x + x, playerChunk.y + z));
             }
         }

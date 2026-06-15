@@ -66,6 +66,9 @@ public class PlayerCrosshair : MonoBehaviour
 
     private void OnGUI()
     {
+        // Menüdeyken veya fare serbestken crosshair'i gizle (Sadece fare kilitliyken göster)
+        if (Cursor.lockState != CursorLockMode.Locked || Cursor.visible) return; 
+
         float cx = Screen.width / 2f;
         float cy = Screen.height / 2f;
 
