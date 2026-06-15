@@ -38,11 +38,6 @@ public partial class CarController
 
         RefreshHUDStrings();
 
-        int width = 280;
-        int height = 250;
-        int x = Screen.width - width - 20;
-        int y = Screen.height - height - 20;
-
         if (IsFlipped)
         {
             GUIStyle warningStyle = new GUIStyle(guiStyle);
@@ -53,33 +48,7 @@ public partial class CarController
             GUI.Box(new Rect(Screen.width / 2 - 200, Screen.height / 2 - 50, 400, 100), "");
             GUI.Label(new Rect(Screen.width / 2 - 200, Screen.height / 2 - 50, 400, 100), "ARABA TERS DÖNDÜ!\nDÜZELTMEK İÇİN [B] YE BAS", warningStyle);
         }
-
-        GUI.Box(new Rect(x, y, width, height), "ARAÇ BİLGİ EKRANI");
-
-        Color speedColor = displaySpeed > 180f ? Color.red : (displaySpeed > 100f ? Color.yellow : Color.green);
-        guiStyle.normal.textColor = speedColor;
-        GUI.Label(new Rect(x + 15, y + 30, 250, 30), cachedSpeedText, guiStyle);
-
-        guiStyle.normal.textColor = Color.white;
-        GUI.Label(new Rect(x + 15, y + 60, 250, 30), cachedGearText, guiStyle);
-
-        guiStyle.normal.textColor = Color.cyan;
-        GUI.Label(new Rect(x + 15, y + 90, 250, 30), cachedRpmText, guiStyle);
-
-        if (isHandbrakeEngaged)
-        {
-            guiStyle.normal.textColor = Color.red;
-            GUI.Label(new Rect(x + 15, y + 120, 250, 30), "EL FRENİ ÇEKİLİ (!)", guiStyle);
-        }
-
-        guiSmallStyle.normal.textColor = currentFuelLiters < 5f ? Color.red : Color.yellow;
-        GUI.Label(new Rect(x + 15, y + 150, 250, 25), cachedFuelText, guiSmallStyle);
-
-        bool hasBattery = carStartSystem != null && carStartSystem.HasBattery;
-        guiSmallStyle.normal.textColor = (!hasBattery || currentBatteryPercent < 20f) ? Color.red : Color.green;
-        GUI.Label(new Rect(x + 15, y + 175, 250, 25), cachedBatteryText, guiSmallStyle);
-
-        guiSmallStyle.normal.textColor = Color.gray;
-        GUI.Label(new Rect(x + 15, y + 200, 250, 25), cachedOilWaterText, guiSmallStyle);
+        
+        // Sağ alttaki panel kullanıcının isteği üzerine silindi.
     }
 }

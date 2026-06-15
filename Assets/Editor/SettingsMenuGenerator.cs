@@ -1,6 +1,6 @@
 using UnityEngine;
-using UnityEditor;
 using UnityEngine.UI;
+using UnityEditor;
 using TMPro;
 using UnityEngine.Events;
 
@@ -8,94 +8,151 @@ public class SettingsMenuGenerator : EditorWindow
 {
     private static TMP_FontAsset customFont;
 
-    [MenuItem("Tools/Ayarlar Menusu Olustur")]
-    public static void GenerateSettingsMenu()
+    [MenuItem("Tools/Eski Menuyu Onar (Sadece Tuslar)")]
+    public static void FixOldMenu()
     {
-        string[] fontGuids = AssetDatabase.FindAssets("Button t:TMP_FontAsset");
-        if (fontGuids.Length > 0)
+        KeybindUI[] keybinds = Resources.FindObjectsOfTypeAll<KeybindUI>();
+        if (keybinds.Length == 0)
         {
-            customFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(AssetDatabase.GUIDToAssetPath(fontGuids[0]));
+            Debug.LogWarning("Sahnede hiçbir KeybindUI bulunamadı!");
+            return;
+        }
+        foreach (var k in keybinds)
+        {
+            if (k.actionName == "Car/Accelerate" || (k.actionName == "Driving/Move" && k.compositePartName == "")) k.compositePartName = "up";
+            if (k.actionName == "Car/Brake") k.compositePartName = "down";
+            if (k.actionName == "Car/Steer") { k.compositePartName = "left"; /* Saga için ayrı buton varsa manuel düzeltilmeli */ }
+            if (k.actionName == "Car/Handbrake") k.compositePartName = "";
+            
+            if (k.actionName.StartsWith("Car/")) k.actionName = k.actionName.Replace("Car/", "Driving/");
+            
+            // Eğer bindingIndex eskiden kalmışsa (artık string kullanıyoruz ama scriptte eski değerler varsa)
+            string parentName = k.transform.parent.name;
+            if (parentName.Contains("Ileri") || parentName.Contains("Gaz")) { k.actionName = "Driving/Move"; k.compositePartName = "up"; }
+            if (parentName.Contains("Geri") || parentName.Contains("Fren")) { k.actionName = "Driving/Move"; k.compositePartName = "down"; }
+            if (parentName.Contains("Sola")) { k.actionName = "Driving/Move"; k.compositePartName = "left"; }
+            if (parentName.Contains("Saga")) { k.actionName = "Driving/Move"; k.compositePartName = "right"; }
+        }
+        
+        Debug.Log("Mevcut menüdeki tuş bağlantıları onarıldı! Artık Dpad hatası vermeyecek.");
+    }
+
+    [MenuItem("Tools/Tus Ayarlarini Sifirla (Reset)")]
+    public static void ResetKeybinds()
+    {
+        PlayerPrefs.DeleteKey("rebinds");
+        PlayerPrefs.Save();
+        Debug.Log("Tüm tuş atamaları sıfırlandı! Lütfen oyunu durdurup tekrar Play'e basın.");
+    }
+
+    [MenuItem("Tools/Ayarlar Menusu Olustur")]
+    public static void CreateMenu()
+    {
+        GameManager gameManager = FindObjectOfType<GameManager>();
+        if (gameManager == null)
+        {
+            Debug.LogError("Sahnede GameManager bulunamadı! Lütfen önce bir GameManager ekleyin.");
+            return;
         }
 
-        // Eski objeleri temizle
-        GameObject oldCanvas = GameObject.Find("SettingsCanvas");
-        if (oldCanvas != null) DestroyImmediate(oldCanvas);
+        // Font bulma
+        string[] guids = AssetDatabase.FindAssets("t:TMP_FontAsset");
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(path);
+            if (font != null && font.name.Contains("Orbitron"))
+            {
+                customFont = font;
+                break;
+            }
+        }
 
-        // 1. Yeni Canvas
-        GameObject canvasObj = new GameObject("SettingsCanvas");
-        Canvas canvas = canvasObj.AddComponent<Canvas>();
+        // Ana Taşıyıcı
+        GameObject holder = new GameObject("SettingsMenuHolder");
+        Canvas canvas = holder.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 100;
-
-        CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
+        canvas.sortingOrder = 100; // En üstte görünsün
+        CanvasScaler scaler = holder.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
-        canvasObj.AddComponent<GraphicRaycaster>();
+        holder.AddComponent<GraphicRaycaster>();
 
-        // EventSystem
-        if (FindObjectOfType<UnityEngine.EventSystems.EventSystem>() == null)
-        {
-            GameObject eventSystem = new GameObject("EventSystem");
-            eventSystem.AddComponent<UnityEngine.EventSystems.EventSystem>();
-            eventSystem.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
-        }
+        SettingsManager settingsManager = holder.AddComponent<SettingsManager>();
+        gameManager.pausePanel = holder; // GameManager'a bağla
 
-        // Managers
-        SettingsManager settingsManager = canvasObj.AddComponent<SettingsManager>();
-        KeybindManager keybindManager = canvasObj.AddComponent<KeybindManager>();
+        // Arka Plan Blur (veya yarı saydam siyah)
+        GameObject bg = new GameObject("BlurBackground");
+        bg.transform.SetParent(holder.transform, false);
+        Image bgImg = bg.AddComponent<Image>();
+        bgImg.color = new Color(0, 0, 0, 0.8f);
+        SetRectFull(bg.GetComponent<RectTransform>());
 
-        // 2. Blur Paneli
-        GameObject blurPanel = new GameObject("BlurBackground");
-        blurPanel.transform.SetParent(canvas.transform, false);
-        Image blurImage = blurPanel.AddComponent<Image>();
-        blurImage.color = new Color(0, 0, 0, 0.85f);
-        RectTransform blurRect = blurPanel.GetComponent<RectTransform>();
-        SetRectFull(blurRect);
+        // Panel Ana Çerçeve
+        GameObject settingsPanel = new GameObject("SettingsPanel");
+        settingsPanel.transform.SetParent(holder.transform, false);
+        Image panelImg = settingsPanel.AddComponent<Image>();
+        panelImg.color = new Color(0.1f, 0.1f, 0.1f, 1f); // Koyu gri
+        RectTransform panelRect = settingsPanel.GetComponent<RectTransform>();
+        panelRect.sizeDelta = new Vector2(1200, 800);
+        panelRect.anchoredPosition = Vector2.zero;
+
+        // Death Panel
+        GameObject deathPanel = new GameObject("DeathPanel");
+        deathPanel.transform.SetParent(holder.transform, false);
+        Image deathImg = deathPanel.AddComponent<Image>();
+        deathImg.color = new Color(0.2f, 0, 0, 0.95f);
+        SetRectFull(deathPanel.GetComponent<RectTransform>());
+        
+        TextMeshProUGUI deathText = CreateText(deathPanel.transform, "OLDUN!", 100, TextAlignmentOptions.Center);
+        deathText.rectTransform.anchoredPosition = new Vector2(0, 100);
+        
+        TextMeshProUGUI respawnText = CreateText(deathPanel.transform, "5 Saniye Icinde Ana Menuye Donuluyor...", 40, TextAlignmentOptions.Center);
+        respawnText.rectTransform.anchoredPosition = new Vector2(0, -100);
+        
+        gameManager.deathPanel = deathPanel;
+        deathPanel.SetActive(false); // Başlangıçta kapalı
 
         // Kapatmak için arkaplana buton özelliği
-        Button blurBtn = blurPanel.AddComponent<Button>();
-
-        // 3. Ana Panel
-        GameObject settingsPanel = new GameObject("SettingsPanel");
-        settingsPanel.transform.SetParent(canvas.transform, false);
-        Image settingsImage = settingsPanel.AddComponent<Image>();
-        settingsImage.color = new Color(0.1f, 0.1f, 0.1f, 0.9f);
-        RectTransform settingsRect = settingsPanel.GetComponent<RectTransform>();
-        settingsRect.sizeDelta = new Vector2(1200, 800);
-        settingsRect.anchoredPosition = Vector2.zero;
+        Button bgBtn = bg.AddComponent<Button>();
+        UnityEditor.Events.UnityEventTools.AddBoolPersistentListener(bgBtn.onClick, new UnityAction<bool>(holder.SetActive), false);
 
         // Başlık
-        TextMeshProUGUI titleText = CreateText(settingsPanel.transform, "AYARLAR", 48, TextAlignmentOptions.Center);
-        titleText.rectTransform.anchorMin = new Vector2(0.5f, 1f);
-        titleText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
-        titleText.rectTransform.anchoredPosition = new Vector2(0, -50);
+        TextMeshProUGUI title = CreateText(settingsPanel.transform, "AYARLAR", 48, TextAlignmentOptions.Center);
+        title.rectTransform.anchorMin = new Vector2(0.5f, 1);
+        title.rectTransform.anchorMax = new Vector2(0.5f, 1);
+        title.rectTransform.pivot = new Vector2(0.5f, 1);
+        title.rectTransform.anchoredPosition = new Vector2(0, -55);
+        title.rectTransform.sizeDelta = new Vector2(300, 50);
 
-        // Kapat Butonu
+        // X Butonu
         GameObject closeBtnObj = CreateButton(settingsPanel.transform, "X", new Vector2(60, 60), out Button closeBtn);
-        closeBtnObj.GetComponent<RectTransform>().anchorMin = new Vector2(1, 1);
-        closeBtnObj.GetComponent<RectTransform>().anchorMax = new Vector2(1, 1);
-        closeBtnObj.GetComponent<RectTransform>().anchoredPosition = new Vector2(-50, -50);
-        closeBtnObj.GetComponent<Image>().color = new Color(0.8f, 0.2f, 0.2f);
-        
-        UnityEditor.Events.UnityEventTools.AddBoolPersistentListener(closeBtn.onClick, new UnityAction<bool>(canvasObj.SetActive), false);
-        UnityEditor.Events.UnityEventTools.AddBoolPersistentListener(blurBtn.onClick, new UnityAction<bool>(canvasObj.SetActive), false);
+        RectTransform cRect = closeBtnObj.GetComponent<RectTransform>();
+        cRect.anchorMin = new Vector2(1, 1);
+        cRect.anchorMax = new Vector2(1, 1);
+        cRect.pivot = new Vector2(1, 1);
+        cRect.anchoredPosition = new Vector2(-20, -20);
+        closeBtn.GetComponent<Image>().color = new Color(0.8f, 0.2f, 0.2f, 1f);
+        UnityEditor.Events.UnityEventTools.AddBoolPersistentListener(closeBtn.onClick, new UnityAction<bool>(holder.SetActive), false);
 
-        // Sekme Butonları (Tabs)
+        // Sekmeler (Tabs)
         GameObject tabsContainer = new GameObject("TabsContainer");
         tabsContainer.transform.SetParent(settingsPanel.transform, false);
         RectTransform tabsRect = tabsContainer.AddComponent<RectTransform>();
-        tabsRect.anchorMin = new Vector2(0, 1);
-        tabsRect.anchorMax = new Vector2(1, 1);
-        tabsRect.sizeDelta = new Vector2(-100, 60);
-        tabsRect.anchoredPosition = new Vector2(0, -120);
+        tabsRect.anchorMin = new Vector2(0.5f, 1);
+        tabsRect.anchorMax = new Vector2(0.5f, 1);
+        tabsRect.pivot = new Vector2(0.5f, 1);
+        tabsRect.anchoredPosition = new Vector2(0, -130);
+        tabsRect.sizeDelta = new Vector2(1100, 60);
+
         HorizontalLayoutGroup tabsLayout = tabsContainer.AddComponent<HorizontalLayoutGroup>();
         tabsLayout.spacing = 20;
-        tabsLayout.childControlWidth = true;
+        tabsLayout.childForceExpandHeight = true;
         tabsLayout.childForceExpandWidth = true;
 
-        GameObject btnSesObj = CreateButton(tabsContainer.transform, "SES", new Vector2(0, 60), out Button btnSes);
-        GameObject btnGoruntuObj = CreateButton(tabsContainer.transform, "GÖRÜNTÜ", new Vector2(0, 60), out Button btnGoruntu);
-        GameObject btnKontrolObj = CreateButton(tabsContainer.transform, "KONTROLLER", new Vector2(0, 60), out Button btnKontrol);
+        GameObject btnSesObj = CreateButton(tabsContainer.transform, "SES", new Vector2(350, 60), out Button btnSes);
+        GameObject btnGoruntuObj = CreateButton(tabsContainer.transform, "GORUNTU", new Vector2(350, 60), out Button btnGoruntu);
+        GameObject btnKontrolObj = CreateButton(tabsContainer.transform, "KONTROLLER", new Vector2(350, 60), out Button btnKontrol);
 
         // Sayfalar
         GameObject pageSes = CreatePage(settingsPanel.transform, "Page_Ses");
@@ -104,42 +161,47 @@ public class SettingsMenuGenerator : EditorWindow
 
         // --- SES SAYFASI ---
         settingsManager.masterVolumeSlider = CreateSliderRow(pageSes.transform, "Ana Ses");
-        settingsManager.menuVolumeSlider = CreateSliderRow(pageSes.transform, "Menü Sesi");
-        settingsManager.musicVolumeSlider = CreateSliderRow(pageSes.transform, "Müzik");
-        settingsManager.vfxVolumeSlider = CreateSliderRow(pageSes.transform, "VFX");
+        settingsManager.menuVolumeSlider = CreateSliderRow(pageSes.transform, "Menu Sesi");
+        settingsManager.musicVolumeSlider = CreateSliderRow(pageSes.transform, "Muzik Sesi");
+        settingsManager.vfxVolumeSlider = CreateSliderRow(pageSes.transform, "Efekt Sesi");
 
         // --- GÖRÜNTÜ SAYFASI ---
         settingsManager.resolutionText = CreateResolutionRow(pageGoruntu.transform, settingsManager);
         settingsManager.fullscreenText = CreateFullscreenRow(pageGoruntu.transform, settingsManager);
+        settingsManager.brightnessSlider = CreateSliderRow(pageGoruntu.transform, "Parlaklik");
         settingsManager.qualityMarkers = CreateQualityRow(pageGoruntu.transform, settingsManager);
-        settingsManager.brightnessSlider = CreateSliderRow(pageGoruntu.transform, "Parlaklık");
 
-        // --- KONTROLLER SAYFASI ---
-        // Scroll View için
-        ScrollRect scrollRect = pageKontrol.AddComponent<ScrollRect>();
-        GameObject viewport = new GameObject("Viewport");
-        viewport.transform.SetParent(pageKontrol.transform, false);
-        SetRectFull(viewport.AddComponent<RectTransform>());
-        viewport.AddComponent<RectMask2D>();
-
-        GameObject content = new GameObject("Content");
-        content.transform.SetParent(viewport.transform, false);
-        RectTransform contentRect = content.AddComponent<RectTransform>();
-        contentRect.anchorMin = new Vector2(0, 1);
-        contentRect.anchorMax = new Vector2(1, 1);
-        contentRect.pivot = new Vector2(0.5f, 1);
-        contentRect.sizeDelta = new Vector2(0, 800);
+        // --- KONTROLLER SAYFASI (YAYA / ARAÇ SEKMELİ) ---
+        // Alt sekme butonları için yatay düzen
+        GameObject subTabsContainer = new GameObject("SubTabsContainer");
+        subTabsContainer.transform.SetParent(pageKontrol.transform, false);
+        RectTransform subTabsRect = subTabsContainer.AddComponent<RectTransform>();
+        subTabsRect.sizeDelta = new Vector2(1100, 60);
         
-        VerticalLayoutGroup contentLayout = content.AddComponent<VerticalLayoutGroup>();
-        contentLayout.spacing = 15;
-        contentLayout.padding = new RectOffset(20, 20, 20, 20);
-        contentLayout.childControlHeight = false;
-        contentLayout.childForceExpandHeight = false;
+        HorizontalLayoutGroup subTabsLayout = subTabsContainer.AddComponent<HorizontalLayoutGroup>();
+        subTabsLayout.childControlWidth = false;
+        subTabsLayout.childForceExpandWidth = false;
+        subTabsLayout.spacing = 20;
+        subTabsLayout.childAlignment = TextAnchor.MiddleCenter;
 
-        scrollRect.content = contentRect;
-        scrollRect.viewport = viewport.GetComponent<RectTransform>();
-        scrollRect.horizontal = false;
-        scrollRect.scrollSensitivity = 30f;
+        GameObject btnYayaObj = CreateButton(subTabsContainer.transform, "YAYA KONTROLLERİ", new Vector2(300, 60), out Button btnYaya);
+        GameObject btnAracObj = CreateButton(subTabsContainer.transform, "ARAÇ KONTROLLERİ", new Vector2(300, 60), out Button btnArac);
+
+        // Yaya Paneli
+        GameObject yayaPanel = new GameObject("YayaPanel");
+        yayaPanel.transform.SetParent(pageKontrol.transform, false);
+        VerticalLayoutGroup yayaLayout = yayaPanel.AddComponent<VerticalLayoutGroup>();
+        yayaLayout.spacing = 15;
+        yayaLayout.childControlHeight = false;
+        yayaLayout.childForceExpandHeight = false;
+
+        // Araç Paneli
+        GameObject aracPanel = new GameObject("AracPanel");
+        aracPanel.transform.SetParent(pageKontrol.transform, false);
+        VerticalLayoutGroup aracLayout = aracPanel.AddComponent<VerticalLayoutGroup>();
+        aracLayout.spacing = 15;
+        aracLayout.childControlHeight = false;
+        aracLayout.childForceExpandHeight = false;
 
         // Bekleme Ekranı (Tuş atanırken çıkacak)
         GameObject waitingPanel = new GameObject("WaitingPanel");
@@ -147,28 +209,35 @@ public class SettingsMenuGenerator : EditorWindow
         Image waitImg = waitingPanel.AddComponent<Image>();
         waitImg.color = new Color(0, 0, 0, 0.9f);
         SetRectFull(waitingPanel.GetComponent<RectTransform>());
-        TextMeshProUGUI waitText = CreateText(waitingPanel.transform, "Yeni bir tuşa basın...", 48, TextAlignmentOptions.Center);
+        TextMeshProUGUI waitText = CreateText(waitingPanel.transform, "Yeni bir tusa basin...", 48, TextAlignmentOptions.Center);
         waitText.rectTransform.anchoredPosition = Vector2.zero;
         waitingPanel.SetActive(false);
 
-        // Yaya Kontrolleri
-        CreateText(content.transform, "YAYA KONTROLLERİ", 32, TextAlignmentOptions.Left).color = Color.yellow;
-        CreateKeybindRow(content.transform, "Hareket Etme (İleri)", "Player/Move", waitingPanel);
-        CreateKeybindRow(content.transform, "Parça ile Etkileşim", "Player/Pickup", waitingPanel);
-        CreateKeybindRow(content.transform, "Nesne ile Etkileşim", "Player/Interact", waitingPanel);
-        CreateKeybindRow(content.transform, "Sürükleme / Kapı Açma", "Player/Attack", waitingPanel);
-        CreateKeybindRow(content.transform, "Koşma", "Player/Sprint", waitingPanel);
-        CreateKeybindRow(content.transform, "Eğilme", "Player/Crouch", waitingPanel);
-        CreateKeybindRow(content.transform, "Zoom", "Player/Zoom", waitingPanel);
+        // Yaya Tuşları
+        CreateKeybindRow(yayaPanel.transform, "Parça ile Etkilesim", "Player/Pickup", waitingPanel);
+        CreateKeybindRow(yayaPanel.transform, "Nesne ile Etkilesim", "Player/Interact", waitingPanel);
+        CreateKeybindRow(yayaPanel.transform, "Sürükleme / Kapı Açma", "Player/Attack", waitingPanel);
+        CreateKeybindRow(yayaPanel.transform, "Kosma", "Player/Sprint", waitingPanel);
+        CreateKeybindRow(yayaPanel.transform, "Egilme", "Player/Crouch", waitingPanel);
+        CreateKeybindRow(yayaPanel.transform, "Zoom", "Player/Zoom", waitingPanel);
 
-        // Araç Kontrolleri
-        CreateText(content.transform, "", 20, TextAlignmentOptions.Left); // Boşluk
-        CreateText(content.transform, "ARAÇ KONTROLLERİ", 32, TextAlignmentOptions.Left).color = Color.yellow;
-        // Not: Araç kontrolleri "Player" map'inde değilse bu isimleri projene göre güncellemelisin. Şimdilik genel yazdım.
-        CreateKeybindRow(content.transform, "Gaz", "Car/Accelerate", waitingPanel);
-        CreateKeybindRow(content.transform, "Fren", "Car/Brake", waitingPanel);
-        CreateKeybindRow(content.transform, "Sola / Sağa", "Car/Steer", waitingPanel);
-        CreateKeybindRow(content.transform, "El Freni", "Car/Handbrake", waitingPanel);
+        // Araç Tuşları
+        CreateKeybindRow(aracPanel.transform, "Ileri / Gaz", "Driving/Move", waitingPanel, "up");
+        CreateKeybindRow(aracPanel.transform, "Geri / Fren", "Driving/Move", waitingPanel, "down");
+        CreateKeybindRow(aracPanel.transform, "Sola", "Driving/Move", waitingPanel, "left");
+        CreateKeybindRow(aracPanel.transform, "Saga", "Driving/Move", waitingPanel, "right");
+        CreateKeybindRow(aracPanel.transform, "El Freni", "Driving/Handbrake", waitingPanel);
+
+        // Alt Sekme Buton Bağlantıları
+        UnityEditor.Events.UnityEventTools.AddBoolPersistentListener(btnYaya.onClick, new UnityAction<bool>(yayaPanel.SetActive), true);
+        UnityEditor.Events.UnityEventTools.AddBoolPersistentListener(btnYaya.onClick, new UnityAction<bool>(aracPanel.SetActive), false);
+        
+        UnityEditor.Events.UnityEventTools.AddBoolPersistentListener(btnArac.onClick, new UnityAction<bool>(aracPanel.SetActive), true);
+        UnityEditor.Events.UnityEventTools.AddBoolPersistentListener(btnArac.onClick, new UnityAction<bool>(yayaPanel.SetActive), false);
+
+        // Başlangıçta Yaya paneli açık olsun
+        yayaPanel.SetActive(true);
+        aracPanel.SetActive(false);
 
         // --- BAĞLANTILAR (Wiring) ---
         settingsManager.audioTab = pageSes;
@@ -190,6 +259,41 @@ public class SettingsMenuGenerator : EditorWindow
         pageSes.SetActive(true);
         pageGoruntu.SetActive(false);
         pageKontrol.SetActive(false);
+        holder.SetActive(false); // Başlangıçta ayarlar menüsü kapalı
+
+        // --- ANA MENÜ BUTONLARINI BAĞLAMA ---
+        GameObject settingsBtnObj = GameObject.Find("settings");
+        if (settingsBtnObj != null)
+        {
+            Button settingsBtn = settingsBtnObj.GetComponent<Button>();
+            if (settingsBtn == null) settingsBtn = settingsBtnObj.AddComponent<Button>(); // Eğer Button yoksa otomatik ekle
+            
+            UnityEditor.Events.UnityEventTools.AddPersistentListener(settingsBtn.onClick, new UnityAction(gameManager.PauseGame));
+        }
+
+        GameObject playBtnObj = GameObject.Find("play");
+        if (playBtnObj != null)
+        {
+            Button playBtn = playBtnObj.GetComponent<Button>();
+            if (playBtn == null) playBtn = playBtnObj.AddComponent<Button>(); // Eğer Button yoksa otomatik ekle
+            
+            UnityEditor.Events.UnityEventTools.AddPersistentListener(playBtn.onClick, new UnityAction(gameManager.StartGame));
+        }
+
+        GameObject mainMenuObj = GameObject.Find("MainMenuUI");
+        if (mainMenuObj != null)
+        {
+            gameManager.mainMenuUI = mainMenuObj;
+        }
+        else if (playBtnObj != null)
+        {
+            Canvas parentCanvas = playBtnObj.GetComponentInParent<Canvas>();
+            if (parentCanvas != null)
+            {
+                gameManager.mainMenuUI = parentCanvas.gameObject;
+            }
+        }
+        // ---------------------------------
 
         Debug.Log("Ayarlar Menüsü tam teşekküllü olarak oluşturuldu!");
         Selection.activeGameObject = settingsPanel;
@@ -334,7 +438,7 @@ public class SettingsMenuGenerator : EditorWindow
         GameObject row = CreateRow(parent, "Grafik Kalitesi");
         GameObject[] markers = new GameObject[3];
 
-        string[] levels = { "Düşük", "Orta", "Yüksek" };
+        string[] levels = { "Düsük", "Orta", "Yüksek" };
         for(int i=0; i<3; i++)
         {
             int index = i;
@@ -358,17 +462,15 @@ public class SettingsMenuGenerator : EditorWindow
         return markers;
     }
 
-    private static void CreateKeybindRow(Transform parent, string labelText, string actionName, GameObject waitingPanel)
+    private static void CreateKeybindRow(Transform parent, string labelText, string actionName, GameObject waitingPanel, string compositePartName = "")
     {
         GameObject row = CreateRow(parent, labelText);
-        
-        GameObject btnObj = CreateButton(row.transform, "Tuş", new Vector2(200, 50), out Button btn);
-        TextMeshProUGUI btnText = btnObj.GetComponentInChildren<TextMeshProUGUI>();
 
-        // Custom script to hold reference
+        GameObject btnObj = CreateButton(row.transform, "...", new Vector2(250, 50), out Button btn);
         KeybindUI keybindUI = btnObj.AddComponent<KeybindUI>();
         keybindUI.actionName = actionName;
-        keybindUI.buttonText = btnText;
+        keybindUI.compositePartName = compositePartName;
+        keybindUI.buttonText = btnObj.GetComponentInChildren<TextMeshProUGUI>();
         keybindUI.waitingPanel = waitingPanel;
 
         UnityEditor.Events.UnityEventTools.AddPersistentListener(btn.onClick, new UnityAction(keybindUI.Rebind));

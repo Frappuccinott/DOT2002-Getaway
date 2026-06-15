@@ -4,28 +4,46 @@ using TMPro;
 
 public class NeonButon : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
-    TextMeshProUGUI yazi;
-    
-    [Tooltip("Düz dururkenki soluk renk")]
-    public Color normalRenk = new Color(1f, 1f, 1f, 0.5f); // Yarı saydam beyaz
+    private TextMeshProUGUI yazi;
     
     [ColorUsage(true, true)] 
     [Tooltip("Fareyle gelince patlayacak HDR renk")]
-    public Color parlakRenk; 
+    public Color parlakRenk = Color.green; // Varsayılan olarak parlak yeşil
+    
+    private Color baslangicRengi;
 
-    void Start()
+    void Awake()
     {
         yazi = GetComponent<TextMeshProUGUI>();
-        yazi.color = normalRenk; // Başlangıç rengini ayarla
+        if (yazi != null)
+        {
+            baslangicRengi = yazi.color; // Sahnede ayarladığın orijinal rengi hafızaya al
+            
+            // Eğer Unity kaynaklı bir hatadan veya önceki scriptten dolayı 
+            // renk tamamen görünmez (alpha = 0) kaydedildiyse, zorla görünür yap:
+            if (baslangicRengi.a <= 0.05f) 
+            {
+                baslangicRengi = Color.white;
+                yazi.color = Color.white;
+            }
+        }
     }
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        yazi.color = parlakRenk; // Üstüne gelince yak
+        if (yazi != null)
+        {
+            Color neon = parlakRenk;
+            neon.a = 1f; // Kullanıcı yanlışlıkla saydamlığı 0 yapmışsa zorla 1 (görünür) yap
+            yazi.color = neon; // Üstüne gelince neon rengi yak
+        }
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
-        yazi.color = normalRenk; // Çekince söndür
+        if (yazi != null)
+        {
+            yazi.color = baslangicRengi; // Fareyi çekince eski haline döndür
+        }
     }
 }
