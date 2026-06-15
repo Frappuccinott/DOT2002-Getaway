@@ -31,15 +31,30 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        // Oyun başladığında (sahnede) direkt ana menüdeyiz
-        isGameStarted = false;
-        UnlockCursor();
-        SetPlayerControlActive(false);
+        int currentSceneIndex = SceneManager.GetActiveScene().buildIndex;
 
-        if (mainMenuUI != null) mainMenuUI.SetActive(true);
-        if (pausePanel != null) pausePanel.SetActive(false);
-        if (settingsMenuUI != null) settingsMenuUI.SetActive(false);
-        if (deathPanel != null) deathPanel.SetActive(false);
+        if (currentSceneIndex == 0) // Ana Menü Sahnesi
+        {
+            isGameStarted = false;
+            UnlockCursor();
+            SetPlayerControlActive(false);
+
+            if (mainMenuUI != null) mainMenuUI.SetActive(true);
+            if (pausePanel != null) pausePanel.SetActive(false);
+            if (settingsMenuUI != null) settingsMenuUI.SetActive(false);
+            if (deathPanel != null) deathPanel.SetActive(false);
+        }
+        else // Oyun Sahnesi
+        {
+            isGameStarted = true;
+            LockCursor();
+            SetPlayerControlActive(true);
+
+            if (mainMenuUI != null) mainMenuUI.SetActive(false);
+            if (pausePanel != null) pausePanel.SetActive(false);
+            if (settingsMenuUI != null) settingsMenuUI.SetActive(false);
+            if (deathPanel != null) deathPanel.SetActive(false);
+        }
 
         // Oyun başladığında kaydedilmiş tuş ayarlarını yükle
         string rebinds = PlayerPrefs.GetString("rebinds", string.Empty);
@@ -55,6 +70,7 @@ public class GameManager : MonoBehaviour
 
     public void StartGame()
     {
+        SceneManager.LoadScene(1);
         isGameStarted = true;
         if (mainMenuUI != null) mainMenuUI.SetActive(false);
         LockCursor();
@@ -119,6 +135,9 @@ public class GameManager : MonoBehaviour
         if (isDead) return;
         isDead = true;
 
+        // Oyunun arkada tamamen kilitlenmesi için zamanı durduruyoruz
+        Time.timeScale = 0f;
+
         if (pausePanel != null) pausePanel.SetActive(false);
         if (deathPanel != null) deathPanel.SetActive(true);
 
@@ -141,9 +160,9 @@ public class GameManager : MonoBehaviour
             countdown--;
         }
 
-        // Oyun başladığı duruma (Ana Menü) geri dönmek için sahneyi baştan yükle
+        // Oyun başladığı duruma (Ana Menü) geri dönmek için 0. sahneyi yükle
         Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        SceneManager.LoadScene(0);
     }
 
     private void SetPlayerControlActive(bool active)
@@ -172,8 +191,8 @@ public class GameManager : MonoBehaviour
     public void ReturnToMainMenu()
     {
         Time.timeScale = 1f;
-        // İçinde bulunduğumuz sahneyi (Game) baştan yükleyerek oyunu sıfırlıyoruz ve direkt ana menüye dönüyoruz
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        // Ana menüye dönmek için 0. indexteki sahneyi yükle
+        SceneManager.LoadScene(0);
     }
 
     public void ExitGame()

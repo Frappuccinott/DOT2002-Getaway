@@ -117,11 +117,11 @@ AudioMixerController:
   m_EnableSuspend: 1
   m_UpdateMode: 0
   m_ExposedParameters:
-  - guid: 76ce6a9d1ad0fb8438bb3a98c345ba41
+  - guid: b288ed4225764514685ded750c0943e9
     name: Music
-  - guid: 04734634b86576d44b831b515988a834
+  - guid: 3b677d149244fcb4b8d13280684b98df
     name: RadioMusic
-  - guid: 6776ce16e03534640aa61d0ebc8093a9
+  - guid: b0f999960fd923e49937f694fd8ce0b2
     name: Sfx
   m_AudioMixerGroupViews:
   - guids:

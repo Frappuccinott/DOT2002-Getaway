@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
+using UnityEngine.Audio;
 
 public class SettingsManager : MonoBehaviour
 {
@@ -16,9 +17,12 @@ public class SettingsManager : MonoBehaviour
     public GameObject[] qualityMarkers; // 0: Düşük, 1: Orta, 2: Yüksek
     public Slider brightnessSlider;
 
+    [Header("Audio Settings")]
+    public AudioMixer audioMixer;
+
     [Header("Audio UI")]
     public Slider masterVolumeSlider;
-    public Slider menuVolumeSlider;
+    public Slider radioMusicSlider;
     public Slider musicVolumeSlider;
     public Slider vfxVolumeSlider;
 
@@ -147,22 +151,40 @@ public class SettingsManager : MonoBehaviour
         PlayerPrefs.Save();
     }
 
-    public void SetMenuVolume(float volume)
+    public void SetRadioMusicVolume(float volume)
     {
-        PlayerPrefs.SetFloat("MenuVolume", volume);
+        PlayerPrefs.SetFloat("RadioMusic", volume);
         PlayerPrefs.Save();
+        
+        if (audioMixer != null)
+        {
+            float db = Mathf.Log10(Mathf.Max(0.0001f, volume)) * 20f;
+            audioMixer.SetFloat("RadioMusic", db);
+        }
     }
 
     public void SetMusicVolume(float volume)
     {
         PlayerPrefs.SetFloat("MusicVolume", volume);
         PlayerPrefs.Save();
+
+        if (audioMixer != null)
+        {
+            float db = Mathf.Log10(Mathf.Max(0.0001f, volume)) * 20f;
+            audioMixer.SetFloat("Music", db);
+        }
     }
 
     public void SetVFXVolume(float volume)
     {
         PlayerPrefs.SetFloat("VFXVolume", volume);
         PlayerPrefs.Save();
+
+        if (audioMixer != null)
+        {
+            float db = Mathf.Log10(Mathf.Max(0.0001f, volume)) * 20f;
+            audioMixer.SetFloat("Sfx", db);
+        }
     }
     #endregion
 
@@ -178,14 +200,21 @@ public class SettingsManager : MonoBehaviour
 
         if (brightnessSlider != null) brightnessSlider.value = PlayerPrefs.GetFloat("Brightness", 0.5f);
 
-        // Ses
-        if (masterVolumeSlider != null)
-        {
-            masterVolumeSlider.value = PlayerPrefs.GetFloat("MasterVolume", 1f);
-            SetMasterVolume(masterVolumeSlider.value);
-        }
-        if (menuVolumeSlider != null) menuVolumeSlider.value = PlayerPrefs.GetFloat("MenuVolume", 1f);
-        if (musicVolumeSlider != null) musicVolumeSlider.value = PlayerPrefs.GetFloat("MusicVolume", 1f);
-        if (vfxVolumeSlider != null) vfxVolumeSlider.value = PlayerPrefs.GetFloat("VFXVolume", 1f);
+        // Ses - UI nesnelerinden bağımsız olarak PlayerPrefs'ten alıp direkt uygula
+        float masterVol = PlayerPrefs.GetFloat("MasterVolume", 1f);
+        SetMasterVolume(masterVol);
+        if (masterVolumeSlider != null) masterVolumeSlider.value = masterVol;
+
+        float radioVol = PlayerPrefs.GetFloat("RadioMusic", 1f);
+        SetRadioMusicVolume(radioVol);
+        if (radioMusicSlider != null) radioMusicSlider.value = radioVol;
+
+        float musicVol = PlayerPrefs.GetFloat("MusicVolume", 1f);
+        SetMusicVolume(musicVol);
+        if (musicVolumeSlider != null) musicVolumeSlider.value = musicVol;
+
+        float vfxVol = PlayerPrefs.GetFloat("VFXVolume", 1f);
+        SetVFXVolume(vfxVol);
+        if (vfxVolumeSlider != null) vfxVolumeSlider.value = vfxVol;
     }
 }

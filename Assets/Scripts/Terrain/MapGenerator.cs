@@ -84,7 +84,10 @@ public class MapGenerator : MonoBehaviour
 
         if (chunk.objectsParent != null)
         {
-            StaticBatchingUtility.Combine(chunk.objectsParent);
+            // FPS DROP SEBEBİ 1: Static Batching oyun çalışırken yapıldığında
+            // işlemciyi kilitler ve devasa anlık takılmalara (stutter) sebep olur.
+            // Bunun yerine ağaç ve taş materyallerinde "Enable GPU Instancing" açılmalıdır.
+            // StaticBatchingUtility.Combine(chunk.objectsParent);
         }
     }
 
